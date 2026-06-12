@@ -1,7 +1,7 @@
 # Real-Time Fraud Detection on Snowflake
 ## Online Feature Store Solution
 
-> Sub-2 second feature freshness. ~$400-700/month platform cost. Single platform, zero warehouse on the hot path.
+> Sub-2 second feature freshness. Single platform, zero warehouse on the hot path.
 
 This repository contains a single, clean production architecture for real-time fraud detection using the **Snowflake Online Feature Store** — replacing a multi-service setup (daily batch features, external model serving, manual monitoring) with a unified Snowflake-native solution.
 
@@ -16,9 +16,10 @@ This repository contains a single, clean production architecture for real-time f
 5. [Setup Guide](#setup-guide)
 6. [Notebook Walkthrough](#notebook-walkthrough)
 7. [Design Decisions](#design-decisions)
-8. [Caveats & Production Considerations](#caveats--production-considerations)
-9. [Supporting Documentation](#supporting-documentation)
-10. [Teardown](#teardown)
+8. [Online Feature Store Pricing Factors](#online-feature-store-pricing-factors)
+9. [Caveats & Production Considerations](#caveats--production-considerations)
+10. [Supporting Documentation](#supporting-documentation)
+11. [Teardown](#teardown)
 
 ---
 
@@ -44,7 +45,7 @@ This isn't a model accuracy problem — it's a **data freshness problem**. The s
 |---|---|---|
 | Feature freshness | 24 hours | **< 2 seconds** |
 | Card-testing detection | Missed entirely | Caught from transaction 2 onwards |
-| Monthly platform cost | High (multi-service) | **~$400-700/month** |
+| Monthly platform cost | High (multi-service) | **Significantly lower** (see [Pricing Factors](#online-feature-store-pricing-factors)) |
 | Infrastructure | 5+ services to coordinate | **Single platform** |
 | Model iteration | Hours | **3-5 minutes** |
 | Monitoring | Manual | **Automated drift detection** |
@@ -67,12 +68,12 @@ Transaction arrives (payment gateway)
                     ▼
 AWS API Gateway → PrivateLink → SPCS Scoring Container
                                       │
-                                      ├── REST → Online Feature Store (~10-15ms)
+                                      ├── REST → Online Feature Store (~12ms p50)
                                       │          4 entity velocity lookups, concurrent
-                                      ├── XGBoost inference (~105ms)
+                                      ├── XGBoost inference (~5ms p50)
                                       │
                                       ▼
-                               Decision (~130ms total)
+                               Decision (~17ms p50 via internal mesh)
 ```
 
 ### Platform Components
@@ -123,9 +124,9 @@ AWS API Gateway → PrivateLink → SPCS Scoring Container
 | Metric | Value |
 |---|---|
 | Feature freshness (velocity) | < 2 seconds end-to-end |
-| Feature lookup latency | ~10-15ms p50 (4 entities concurrent via REST) |
-| End-to-end scoring latency | ~130ms p50 (lookup + inference + PrivateLink) |
-| Monthly platform cost | ~$400-700 (Online Service + SPCS, no 24/7 DT warehouse) |
+| Feature lookup latency | ~9ms p50, ~18ms p95 (4 entities concurrent via REST) |
+| End-to-end scoring latency | ~17ms p50, ~27ms p95 (OFS lookup + SPCS inference, internal mesh) |
+| Monthly platform cost | Determined by entity cardinality, feature view count, ingest rate, and time-window depth (see [Pricing Factors](#online-feature-store-pricing-factors)) |
 | Break-even fraud blocks | < 1 case/month |
 | Training cycle | 3-5 minutes (Snowpark-Optimized MEDIUM) |
 | Fraud detection rate | ~80% recall (card-testing velocity signals primary driver) |
@@ -258,17 +259,17 @@ Trains an XGBoost fraud classifier on 12M transactions. Training data is generat
 Deploys the model as a REST endpoint and benchmarks end-to-end latency from feature lookup through to scoring decision.
 
 - SPCS deployment via Model Registry (`create_service()`)
-- Scoring service reads velocity features from Online FS REST API (~10-15ms, 4 entities concurrent)
+- Scoring service reads velocity features from Online FS REST API (~12ms p50, 4 entities concurrent)
 - Derived features computed inline in the scoring container
 - PrivateLink for production deployment (no public internet)
-- Measured end-to-end: ~130ms p50
+- Measured end-to-end: ~17ms p50 (via SPCS internal mesh)
 
 **Scoring flow:**
 ```
 Incoming transaction
-  → 4 concurrent Online FS REST lookups  (~10-15ms)
+  → 4 concurrent Online FS REST lookups  (~12ms p50)
   → Compute derived features inline        (~1ms)
-  → XGBoost.predict(147 features)          (~105ms)
+  → XGBoost.predict(features)              (~5ms p50)
   → Return fraud probability               (decision)
 ```
 
@@ -281,8 +282,8 @@ Closes the loop — automated model monitoring and the full business case.
 - Inference logging for audit and model performance tracking
 - Model Monitor: AUC-PR baseline + PSI drift detection
 - Auto-retraining trigger when AUC-PR drops > 5%
-- ROI analysis: platform cost (~$555/month) vs fraud exposure ($623,700/month)
-- Break-even: < 1 extra fraud case blocked per month
+- ROI analysis: platform cost vs fraud exposure ($623,700/month)
+- Break-even: trivially low — blocking a small number of extra fraud cases covers the platform cost
 
 ---
 
@@ -290,7 +291,7 @@ Closes the loop — automated model monitoring and the full business case.
 
 | # | Decision | Choice | Rationale |
 |---|----------|--------|-----------|
-| 1 | No 24/7 DT warehouse | Online FS stream FVs replace DT serving | $13,190/month warehouse cost eliminated |
+| 1 | No 24/7 DT warehouse | Online FS stream FVs replace DT serving | Eliminates always-on warehouse cost |
 | 2 | CONTINUOUS aggregation | Feature.count/sum/max with FeatureAggregationMethod.CONTINUOUS | Updates on every ingest event, < 2s freshness |
 | 3 | Derived features in scoring container | Not in Online FS | Computed inline at inference time — no additional latency, no extra API call |
 | 4 | DT-backed batch FV for profile features | Daily refresh | Static features don't need stream freshness; simpler as SQL aggregate |
@@ -301,6 +302,26 @@ Closes the loop — automated model monitoring and the full business case.
 | 9 | AUC-PR metric | Not ROC-AUC | Appropriate for extreme class imbalance |
 | 10 | PrivateLink | No public ingress | Data never leaves Snowflake's network |
 | 11 | CPU_X64_XS for SPCS | Smallest instance | Right-sized for XGBoost inference at 60 txn/min |
+
+---
+
+## Online Feature Store Pricing Factors
+
+The Online Feature Store is currently in Preview and pricing is not yet finalised. The following factors contribute to the cost of operating the Online Service:
+
+| Factor | Impact on Cost |
+|---|---|
+| **Entity cardinality** | More unique entity keys (customers, merchants, DPANs, IPs) increases storage and lookup state |
+| **Number of feature views** | Each CONTINUOUS stream feature view maintains its own aggregation state |
+| **Ingest rate** | Higher event throughput (events/sec) requires more compute for continuous aggregation |
+| **Time-window depth** | Longer windows (e.g. 7 days vs 1 hour) require more state per entity |
+| **Features per view** | More aggregations per view increases compute per ingested event |
+| **SPCS compute pool size** | Instance type and min/max node count for the scoring service |
+| **Training warehouse usage** | Frequency and duration of model retraining runs |
+
+**This demo uses:** 4 CONTINUOUS stream feature views + 1 batch feature view, ~200K entity cardinality, moderate feature density (~20 aggregations per view), and a minimal SPCS compute pool (CPU_X64_XS, 1-2 nodes).
+
+Contact your Snowflake account team for current pricing details.
 
 ---
 

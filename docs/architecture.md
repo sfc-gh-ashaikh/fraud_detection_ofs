@@ -22,12 +22,12 @@ Customer taps card
   │
   ▼
 ④ SPCS container:
-   ├── 4 concurrent Online FS REST lookups    (~10-15ms, entity velocity features)
+   ├── 4 concurrent Online FS REST lookups    (~12ms p50, entity velocity features)
    ├── Inline derived feature computation     (~1ms)
-   └── XGBoost inference                      (~105ms)
+   └── XGBoost inference                      (~5ms p50)
   │
   ▼
-⑤ Decision: approve / flag / block            (~130ms total p50)
+⑤ Decision: approve / flag / block            (~17ms total p50)
   │
   └──► Prediction logged to INFERENCE_LOG
 ```
@@ -82,20 +82,21 @@ FRAUD_TRANSACTIONS table (source of truth)
 │  Model Serving (24/7)                                            │
 │  ┌─────────────────────────────────────────┐                     │
 │  │ FRAUD_OFS_CPU_POOL                       │                     │
-│  │ CPU_X64_XS (0.06 credits/hr per node)    │  ~105ms inference  │
-│  │ MIN=1, MAX=2 nodes                        │  ~$198/month       │
+│  │ CPU_X64_XS (0.06 credits/hr per node)    │  ~5ms inference    │
+│  │ MIN=1, MAX=2 nodes                        │                    │
 │  └─────────────────────────────────────────┘                     │
 │                                                                   │
 │  Online Feature Store (24/7)                                     │
 │  ┌─────────────────────────────────────────┐                     │
 │  │ Managed Postgres (Online Service)        │                     │
-│  │ ~$200-500/month (instance-based)         │  ~10-15ms lookups  │
-│  │ REST ingest + query endpoints            │  < 2s freshness    │
+│  │ Pricing driven by: entity cardinality,   │  ~10-15ms lookups  │
+│  │ feature view count, ingest rate,         │  < 2s freshness    │
+│  │ time-window depth                        │                    │
+│  │ REST ingest + query endpoints            │                    │
 │  └─────────────────────────────────────────┘                     │
 │                                                                   │
 │  NOTE: No DT warehouse required. The Online Feature Store        │
 │  replaces the 24/7 DT pipeline entirely for feature serving.     │
-│  Total: ~$400-700/month vs $13,388/month with Dynamic Tables.    │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -126,13 +127,45 @@ Fraud probability → approve / flag / block
 
 | Requirement | How it's met |
 |---|---|
-| Feature freshness < 2s | CONTINUOUS stream aggregation in Online FS |
-| End-to-end latency ~130ms | Online FS REST lookup (~15ms) + XGBoost inference (~105ms) + PrivateLink (~15ms) |
+| Feature freshness < 2s | CONTINUOUS stream aggregation in Online FS (measured: ~280ms) |
+| End-to-end latency ~17ms p50 | Online FS REST lookup (~12ms) + XGBoost inference (~5ms) via SPCS internal mesh |
 | No public exposure | PrivateLink + private SPCS endpoint |
 | Compliance (PCI/FCA) | No data leaves Snowflake's network; full inference audit log |
 | Scalability | SPCS auto-scales 1-2 nodes; Online FS scales horizontally |
 | Model lifecycle | Snowflake ML Registry: versioning, monitoring, rollback |
-| Cost | ~$400-700/month total (no 24/7 DT warehouse) |
+| Cost | Pricing depends on entity cardinality, feature view count, ingest rate, and time-window depth (no 24/7 DT warehouse) |
+
+### Latency Note: Internal Mesh vs PrivateLink
+
+The benchmarked latencies above are measured over the **SPCS internal service mesh**
+(`svc.spcs.internal`) — the scoring container, OFS, and notebook all run within the
+same Snowflake SPCS cluster. This is the recommended production topology: the scoring
+service runs inside SPCS and communicates with the Online Feature Store over the
+internal network.
+
+The only PrivateLink hop in production is the **inbound call** from the customer's
+payment gateway (via AWS API Gateway) into the SPCS scoring container:
+
+```
+Customer VPC                              Snowflake SPCS cluster
+─────────────                             ──────────────────────
+API Gateway ──► PrivateLink (+3-8ms) ──► Scoring Container ──► OFS (internal, ~12ms)
+                                                             └──► XGBoost (local, ~5ms)
+```
+
+| Network path | Added latency | When it applies |
+|---|---|---|
+| SPCS internal mesh | 0ms (baseline) | OFS lookups, model inference (all inside SPCS) |
+| PrivateLink (same AZ) | +3-5ms | Inbound call from API Gateway to SPCS |
+| PrivateLink (cross-AZ) | +5-8ms | If caller is in a different AZ |
+| TLS handshake | +2-5ms (first req only) | Amortized to ~0ms with connection pooling |
+
+**Production estimate:** ~20-25ms p50 total (17ms internal + 3-8ms PrivateLink inbound).
+
+To minimise PrivateLink overhead:
+- Deploy the caller (API Gateway / Lambda) in the **same AZ** as the Snowflake account
+- Use **persistent HTTP connections** (connection pooling) to avoid repeated TLS handshakes
+- Keep the scoring service **inside SPCS** so OFS lookups stay on the internal mesh
 
 ## Model Promotion
 
