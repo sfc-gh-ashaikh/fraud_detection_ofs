@@ -21,10 +21,13 @@ Customer taps card
    (payment gateway → API Gateway → PrivateLink → SPCS)
   │
   ▼
-④ SPCS container:
-   ├── 4 concurrent Online FS REST lookups    (~12ms p50, entity velocity features)
-   ├── Inline derived feature computation     (~1ms)
-   └── XGBoost inference                      (~5ms p50)
+④ SPCS container (optimised scoring path):
+   ├── ONE SQL join across 4 Online Feature Tables  (~10ms p50)
+   │   customer + merchant + DPAN + IP velocity in 1 round-trip
+   │   (vs old: 4 concurrent SDK calls = 4 round-trips)
+   ├── Customer profile features from in-memory cache (~0ms)
+   ├── Inline derived feature computation             (~0.1ms)
+   └── XGBoost inference                              (~5ms p50)
   │
   ▼
 ⑤ Decision: approve / flag / block            (~17ms total p50)
@@ -72,6 +75,14 @@ FRAUD_TRANSACTIONS table (source of truth)
 │  │ AUTO_SUSPEND = 60s, INITIALLY_SUSPENDED  │  ~0.4 credits total│
 │  └─────────────────────────────────────────┘                     │
 │                                                                   │
+│  Scoring path feature reads (24/7)                               │
+│  ┌─────────────────────────────────────────┐                     │
+│  │ FRAUD_OFS_SCORE_WH                       │                     │
+│  │ Standard XSMALL (0.5 credits/hr)         │  ~10ms lookups      │
+│  │ ALWAYS_ON (no AUTO_SUSPEND on hot path)  │  dedicated, no      │
+│  │ Dedicated to scoring only                │  training contention │
+│  └─────────────────────────────────────────┘                     │
+│                                                                   │
 │  ML Training (periodic, ~5 min/month)                            │
 │  ┌─────────────────────────────────────────┐                     │
 │  │ FRAUD_OFS_TRAIN_WH                       │                     │
@@ -96,7 +107,8 @@ FRAUD_TRANSACTIONS table (source of truth)
 │  └─────────────────────────────────────────┘                     │
 │                                                                   │
 │  NOTE: No DT warehouse required. The Online Feature Store        │
-│  replaces the 24/7 DT pipeline entirely for feature serving.     │
+│  provides Hybrid Table-backed online serving via the Feature      │
+│  Store SDK. FRAUD_OFS_SCORE_WH is dedicated to scoring reads.    │
 │                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```

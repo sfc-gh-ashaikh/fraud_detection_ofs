@@ -69,6 +69,18 @@ CREATE WAREHOUSE IF NOT EXISTS FRAUD_OFS_TRAIN_WH
     INITIALLY_SUSPENDED = TRUE
     COMMENT = 'ML training only (~5 min/month). SP-Opt MEDIUM = 256GB dedicated RAM.';
 
+-- FRAUD_OFS_SCORE_WH: Dedicated to Online Feature Store reads on the scoring path.
+-- Standard XS, always-on (INITIALLY_SUSPENDED=FALSE, no AUTO_SUSPEND competition).
+-- Isolation from training jobs is critical: if FRAUD_OFS_TRAIN_WH is running a
+-- retraining job when a scoring request arrives, the feature read query would queue.
+-- XS at 0.5 credits/hr (~$1.10/day) is the right trade-off for a payment scoring path.
+CREATE WAREHOUSE IF NOT EXISTS FRAUD_OFS_SCORE_WH
+    WAREHOUSE_SIZE = 'XSMALL'
+    AUTO_SUSPEND = 60
+    AUTO_RESUME = TRUE
+    INITIALLY_SUSPENDED = FALSE
+    COMMENT = 'Online Feature Store reads on scoring path. Dedicated, always-on.';
+
 -- NOTE: No FRAUD_OFS_WH (general/DT warehouse).
 -- The Online Feature Store handles real-time feature serving without a warehouse.
 -- General queries use FRAUD_OFS_TRAIN_WH on demand (auto-resumes, auto-suspends).
@@ -114,8 +126,10 @@ GRANT ALL ON ALL SCHEMAS IN DATABASE FRAUD_DEMO_PROD TO ROLE FRAUD_MLOPS;
 
 GRANT USAGE ON WAREHOUSE FRAUD_OFS_LOAD_WH  TO ROLE FRAUD_DS_DEV;
 GRANT USAGE ON WAREHOUSE FRAUD_OFS_TRAIN_WH TO ROLE FRAUD_DS_DEV;
+GRANT USAGE ON WAREHOUSE FRAUD_OFS_SCORE_WH TO ROLE FRAUD_DS_DEV;
 GRANT USAGE ON WAREHOUSE FRAUD_OFS_LOAD_WH  TO ROLE FRAUD_MLOPS;
 GRANT USAGE ON WAREHOUSE FRAUD_OFS_TRAIN_WH TO ROLE FRAUD_MLOPS;
+GRANT USAGE ON WAREHOUSE FRAUD_OFS_SCORE_WH TO ROLE FRAUD_MLOPS;
 
 GRANT USAGE   ON COMPUTE POOL FRAUD_OFS_CPU_POOL TO ROLE FRAUD_MLOPS;
 GRANT MONITOR ON COMPUTE POOL FRAUD_OFS_CPU_POOL TO ROLE FRAUD_DS_DEV;
