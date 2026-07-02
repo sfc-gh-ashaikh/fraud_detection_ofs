@@ -139,8 +139,8 @@ Fraud probability → approve / flag / block
 
 | Requirement | How it's met |
 |---|---|
-| Feature freshness < 2s | CONTINUOUS stream aggregation in Online FS (measured: ~280ms) |
-| End-to-end latency ~17ms p50 | Online FS REST lookup (~12ms) + XGBoost inference (~5ms) via SPCS internal mesh |
+| Feature freshness < 2s | CONTINUOUS stream aggregation via Postgres-backed Online FS |
+| End-to-end latency ~15ms p50 | FeatureGroup (1 round-trip) + XGBoost via SPCS internal mesh |
 | No public exposure | PrivateLink + private SPCS endpoint |
 | Compliance (PCI/FCA) | No data leaves Snowflake's network; full inference audit log |
 | Scalability | SPCS auto-scales 1-2 nodes; Online FS scales horizontally |
