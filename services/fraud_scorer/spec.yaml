@@ -1,0 +1,35 @@
+# SPCS service spec for the fraud scoring service.
+# OFS_INGEST_URL and OFS_QUERY_URL are injected at deploy time by nb04_serving.ipynb
+# using the internal URLs from SYSTEM$GET_FEATURE_STORE_ONLINE_SERVICE_STATUS.
+# These internal URLs are only resolvable from within the SPCS cluster — which is
+# exactly where this container runs, making the OFS calls the lowest-latency path.
+spec:
+  containers:
+    - name: fraud-scorer
+      image: __IMAGE_URL__
+      env:
+        OFS_INGEST_URL: __OFS_INGEST_INTERNAL__
+        OFS_QUERY_URL:  __OFS_QUERY_INTERNAL__
+        MODEL_DIR:      /mnt/model
+      volumeMounts:
+        - name: model-stage
+          mountPath: /mnt/model
+      resources:
+        requests:
+          cpu: "0.5"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "2Gi"
+      readinessProbe:
+        port: 8080
+        path: /health
+
+  volumes:
+    - name: model-stage
+      source: "@FRAUD_DEMO_PROD.ML.MODEL_STAGE"
+
+  endpoints:
+    - name: scoring
+      port: 8080
+      public: true

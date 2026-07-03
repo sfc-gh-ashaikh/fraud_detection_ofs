@@ -15,8 +15,8 @@ coordination between Kinesis, DynamoDB, Triton, and the fraud-engine-service. Th
 chose a batch fallback for MVP because the real-time path was too complex to stand up.
 
 Snowflake collapses the coordination surface: one platform, one network boundary, one credential,
-one place to monitor. The ~70 second feature freshness (vs 24-hour daily batch) is not a feature we
-added — it is what you get when you remove the coordination layers that were causing the staleness.
+one place to monitor. The <2s feature freshness is not a feature we added — it is what you get when
+you remove the coordination layers that were causing the staleness.
 
 ---
 
@@ -30,14 +30,13 @@ see the velocity spike in time?
 | Feature Freshness | What the Model Sees | Outcome |
 |---|---|---|
 | 24 hours (daily batch) | Yesterday's activity | Attack completes undetected. All transactions approved. |
-| 33-39 seconds (Dynamic Tables, offline) | Near-current activity | Catches slower attacks. Misses bursts completing in < 39s. |
-| **~70 seconds (Online Feature Store)** | Near-current activity | **~1,200x improvement over daily batch. Hybrid Table point lookups on scoring path.** |
+| 33-39 seconds (Dynamic Tables) | Near-current activity | Catches slower attacks. Misses bursts completing in < 39s. |
+| **< 2 seconds (Online Feature Store)** | Real-time activity | **Catches attacks from transaction 2 onwards, regardless of burst speed.** |
 
 This is not a model accuracy problem. The same model, same weights, same threshold — only the
-feature freshness changes. The Online Feature Store provides ~70 second effective freshness
-(`refresh_freq=1 minute` + `target_lag=10 seconds`), compared to 24 hours for daily batch.
-Features are served via low-latency Hybrid Table point lookups — no warehouse scan on the
-scoring path.
+feature freshness changes. A fraudster running 5 transactions in 8 seconds is completely invisible
+to a 33-39 second refresh cycle. With CONTINUOUS aggregation, the velocity count updates after each
+transaction. By transaction 2, the burst is visible.
 
 ---
 
@@ -58,27 +57,28 @@ Payment Backend  (EKS/ECS service, same AWS region as Snowflake account)
       │   insertRows(channel="fraud_txn_ch_01", [full_transaction_record])
       │   └── Writes to: FRAUD_TRANSACTIONS table (persistence, training, audit)
       │
-      │   [Thread B no longer exists — features sync automatically]
-      │   FRAUD_TRANSACTIONS ──► Dynamic Table ──► Online Feature Table (Hybrid Table)
-      │   Effective lag: ~70 seconds (refresh_freq=1min + target_lag=10s)
+      ├── Thread B  [ASYNC — fire-and-forget, does not block authorization]
+      │   HTTP POST ──► PrivateLink ──► OFS REST Ingest API
+      │   Body: {CUSTOMER_ID, MERCHANT_ID, WALLET_DPAN, IP_ADDRESS,
+      │          AMOUNT_USD, IS_GBR, EVENT_TS}
+      │   └── Fans out to: 4 CONTINUOUS velocity aggregation pipelines
       │
       └── Thread C  [SYNC — blocks until fraud score is returned]
           HTTP POST ──► AWS API Gateway ──► PrivateLink ──► SPCS scoring container
-          ├── 4 concurrent fs.read_feature_view(StoreType.ONLINE) lookups
+          ├── 4 concurrent OFS REST lookups     (~12ms p50)
           ├── Derived feature computation inline (~1ms)
           └── XGBoost inference                  (~5ms p50)
           Returns: {fraud_probability, decision}  (~20-25ms p50 total)
                 │
                 ▼
-         EHI service response to checkout.com → Thredd
-         (< 50ms EHI budget — scoring uses ~17-25ms, leaving ~25-33ms)
+         Visa / Mastercard network response
+         (100-200ms authorization timeout — 25ms leaves 75-180ms budget for the rest of the stack)
 ```
 
-**The critical sequencing insight**: Thread A does not block the authorization decision. Thread C
-reads velocity features computed from prior transactions (already in the online store). Thread A
-writes to FRAUD_TRANSACTIONS for persistence, and the DT pipeline syncs these into the online
-store in ~70 seconds for future transactions. The authorization decision is never waiting on the
-persistence write.
+**The critical sequencing insight**: Threads A and B do not block the authorization decision. Thread
+C reads velocity features from **prior** transactions. Threads A and B write features for **future**
+transactions about this customer. There is no dependency between them on the hot authorization path.
+The dual-write pattern adds zero latency to the payment authorization cycle.
 
 ### What Goes Where — and Why the Payloads Differ
 
@@ -118,8 +118,9 @@ channel.insertRow(transactionRecord, offsetToken);
 
 If the payment gateway already publishes to Kafka or Confluent (extremely common in fintech), the
 Snowflake Kafka Connector uses Snowpipe Streaming natively under the hood. Snowflake becomes
-another Kafka consumer — no code change on the payment backend for the persistence path. The DT
-pipeline then automatically syncs new rows into the Online Feature Store.
+another Kafka consumer — no code change on the payment backend for the persistence path. The OFS
+ingest call (Thread B) is still made separately, as the Kafka Connector writes to the persistence
+table, not the OFS. But the ingestion half of the problem disappears entirely.
 
 **Option 3 — SNS/SQS fan-out (for decoupling at peak volume)**
 
@@ -153,43 +154,41 @@ transactions land in S3, Glue jobs transform and encode them, and the output fee
 training pipeline and the serving store. This stage exists because the data and the features live
 in different systems with different schemas.
 
-In our architecture, **there is no pre-feature engineering stage**. Features are SQL aggregations
-over `FRAUD_TRANSACTIONS`, refreshed automatically via Dynamic Tables and synced to an Online
-Feature Table (Hybrid Table) for low-latency point lookups.
+In our architecture, **there is no pre-feature engineering stage**. Features are not prepared before
+serving — they are maintained as running aggregates that update on every ingest event.
 
 ### How the Online Feature Store Registers Features
 
-The feature semantics are declared once as a Snowpark DataFrame backed by SQL:
+The feature semantics are declared once in Python at registration time:
 
 ```python
-customer_velocity_df = session.sql("""
-    SELECT
-        CUSTOMER_ID,
-        COUNT_IF(TRANSACTION_TS >= DATEADD('hour', -1, CURRENT_TIMESTAMP())) AS PURCHASES_NUM_L1H,
-        COUNT_IF(TRANSACTION_TS >= DATEADD('hour', -6, CURRENT_TIMESTAMP())) AS PURCHASES_NUM_L6H,
-        SUM(CASE WHEN TRANSACTION_TS >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                 THEN PURCHASE_AMOUNT ELSE 0 END) AS PURCHASES_AMT_L1H,
-        APPROX_COUNT_DISTINCT(
-            CASE WHEN TRANSACTION_TS >= DATEADD('day', -7, CURRENT_TIMESTAMP())
-                 THEN MERCHANT_ID END) AS DISTINCT_MERCHANTS_L1WK
-        -- ... all velocity features across 5 time windows
-    FROM FRAUD_DEMO_DEV.TRANSACTIONS.FRAUD_TRANSACTIONS
-    WHERE TRANSACTION_TS >= DATEADD('day', -7, CURRENT_TIMESTAMP())
-    GROUP BY CUSTOMER_ID
-""")
-
 customer_velocity_fv = FeatureView(
     name='FRAUD_CUSTOMER_VELOCITY',
     entities=[customer_entity],
-    feature_df=customer_velocity_df,
+    stream_config=stream_cfg,
+    timestamp_col='EVENT_TS',
     refresh_freq='1 minute',
-    online_config=OnlineConfig(enable=True, target_lag='10 seconds'),
+    feature_granularity='1 minute',
+    features=[
+        Feature.count('AMOUNT_USD',   '1h' ).alias('PURCHASES_NUM_L1H'),
+        Feature.count('AMOUNT_USD',   '6h' ).alias('PURCHASES_NUM_L6H'),
+        Feature.count('AMOUNT_USD',   '24h').alias('PURCHASES_NUM_L24H'),
+        Feature.sum(  'AMOUNT_USD',   '1h' ).alias('PURCHASES_AMT_L1H'),
+        Feature.sum(  'AMOUNT_USD',   '24h').alias('PURCHASES_AMT_L24H'),
+        Feature.max(  'AMOUNT_USD',   '48h').alias('PURCHASES_MAX_L48H'),
+        Feature.approx_count_distinct('MERCHANT_ID', '7d').alias('DISTINCT_MERCHANTS_L1WK'),
+        # ... 65 total customer velocity features across 5 time windows
+    ],
+    online_config=OnlineConfig(enable=True, store_type=OnlineStoreType.POSTGRES),
+    feature_aggregation_method=FeatureAggregationMethod.CONTINUOUS,
 )
 ```
 
-Snowflake manages the Dynamic Table refresh and the Online Feature Table sync automatically.
-You declare **what** you need; the platform handles **how** — and the online Hybrid Table
-provides sub-50ms point lookups for the scoring path.
+`CONTINUOUS` means the rolling aggregates update on every ingest event. No warehouse refresh cycle.
+No batch job. No pipeline latency. Features are current within ~280ms of a transaction event.
+
+The platform handles: sliding window maintenance, HyperLogLog cardinality estimation for distinct
+counts, and point lookup serving. You declare **what** you need; the platform handles **how**.
 
 ### Feature Coverage
 
@@ -430,16 +429,16 @@ architecture does not.
 
 **"The Online Feature Store is in Preview — is this production-ready?"**
 
-It is now GA (requires `snowflake-ml-python >= 1.18.0`). Online Feature Tables are backed by
-Hybrid Tables. Hybrid table request billing was disabled March 2026. Pricing is: Virtual warehouse
-compute for DT refresh and key lookups + Hybrid Table storage (same rate as Hybrid Tables).
-Confirm current cost estimates with your Snowflake account team.
+It is in Preview, and pricing is not yet finalized. State this proactively. The counter: Preview
+means direct access to Snowflake's product engineering team during the design phase, and early
+adopters help shape the GA feature set. The platform is in use in production environments today.
+Confirm current pricing with the Snowflake account team before committing capacity estimates.
 
 **"XGBoost at 17ms — what's the latency at 10x volume?"**
 
 SPCS auto-scales (`min_instances=1, max_instances=2`). The Online Feature Store scales
-horizontally as a managed Hybrid Table service. Point lookup latency on Hybrid Tables does not
-degrade at volume in the same way a warehouse query would. Load test at 600 txn/min (10x
+horizontally as a managed service. The Postgres-backed OFS is a point-lookup store — latency does
+not degrade at volume in the same way a query-based store would. Load test at 600 txn/min (10x
 Zilch volume) before go-live is a production checklist item.
 
 ---
@@ -448,13 +447,13 @@ Zilch volume) before go-live is a production checklist item.
 
 | Metric | Value |
 |---|---|
-| Feature freshness (velocity) | ~70 seconds (refresh_freq=1min + target_lag=10s) |
-| Feature freshness vs daily batch | 1,200x improvement (70s vs 24 hours) |
-| OFS lookup latency | Measured in benchmark (Hybrid Table point lookup) |
+| Feature freshness (velocity) | < 2 seconds — measured ~280ms end-to-end |
+| OFS lookup latency | ~12ms p50 (4 entities concurrent, SPCS internal mesh) |
 | XGBoost inference | ~5ms p50 |
 | End-to-end scoring (internal mesh) | ~17ms p50 |
 | End-to-end scoring (with PrivateLink inbound) | ~20-25ms p50 |
-| EHI service budget | < 50ms — scoring uses ~17-25ms, ~25-33ms remaining |
+| Visa/Mastercard authorization timeout | ~100-200ms — 25ms leaves 75-175ms budget |
 | Training cycle | ~5 minutes on Snowpark-Optimized MEDIUM |
 | Training warehouse cost | ~0.5 credits/run, suspended at idle |
 | Fraud recall at 0.05% fraud rate | ~80% (card-testing velocity as primary signal) |
+| approx_count_distinct RSE (default) | ~6.5% — set precision=14 for ~0.8% |

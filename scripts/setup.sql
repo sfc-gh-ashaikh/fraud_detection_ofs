@@ -151,16 +151,33 @@ CREATE STAGE IF NOT EXISTS FRAUD_DEMO_DEV.ML.MODEL_STAGE
 CREATE STAGE IF NOT EXISTS FRAUD_DEMO_STAGING.ML.MODEL_STAGE
     COMMENT = 'Validated model artifacts awaiting production';
 CREATE STAGE IF NOT EXISTS FRAUD_DEMO_PROD.ML.MODEL_STAGE
-    COMMENT = 'Production model artifacts';
+    COMMENT = 'Production model artifacts (fraud_model.json + feature_cols.json)';
+
+-- =============================================================================
+-- SECTION 7: IMAGE REPOSITORY (for SPCS scoring service)
+-- =============================================================================
+-- Stores the Docker image for the custom fraud scoring service.
+-- nb04_serving.ipynb builds and pushes the image here before deploying.
+CREATE IMAGE REPOSITORY IF NOT EXISTS FRAUD_DEMO_PROD.ML.FRAUD_SCORER_REPO
+    COMMENT = 'Container images for the custom SPCS fraud scoring service';
+
+GRANT READ  ON IMAGE REPOSITORY FRAUD_DEMO_PROD.ML.FRAUD_SCORER_REPO TO ROLE FRAUD_MLOPS;
+GRANT WRITE ON IMAGE REPOSITORY FRAUD_DEMO_PROD.ML.FRAUD_SCORER_REPO TO ROLE FRAUD_MLOPS;
+
+-- Required for the scoring service to expose a public HTTPS endpoint.
+GRANT BIND SERVICE ENDPOINT ON ACCOUNT TO ROLE FRAUD_MLOPS;
 
 -- =============================================================================
 -- SETUP COMPLETE
 -- =============================================================================
--- Next steps:
---   1. Set SNOWFLAKE_PAT environment variable (for Online FS REST API auth)
---      export SNOWFLAKE_PAT="<your_pat_token>"
---   2. Run nb01_data_generation.ipynb  (generates 12M transactions)
---   3. Run nb02_feature_store.ipynb    (sets up Online Feature Store)
---   4. Run nb03_training.ipynb         (trains XGBoost model)
---   5. Run nb04_serving.ipynb          (deploys SPCS endpoint)
---   6. Run nb05_monitoring.ipynb       (sets up monitoring + ROI analysis)
+-- Run notebooks in this order:
+--   1. nb01_data_generation.ipynb   — generates 12M synthetic transactions (~10 min)
+--   2. nb02_feature_store.ipynb     — creates OFS online service + 5 feature views
+--   3. nb03_training.ipynb          — trains XGBoost, exports model to stage
+--   4. nb04_serving.ipynb           — builds Docker image, deploys SPCS scoring service
+--   5. nb05_monitoring.ipynb        — sets up inference logging + model monitor
+--   6. nb06_latency_proof.ipynb     — customer-facing freshness + latency demo
+--
+-- Prerequisites:
+--   - Run this script as ACCOUNTADMIN before any notebook
+--   - Docker Desktop must be running on your local machine for nb04 image build
