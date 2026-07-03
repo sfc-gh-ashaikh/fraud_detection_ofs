@@ -148,10 +148,31 @@ Open `notebooks/nb06_latency_proof.ipynb` and run all cells.
 
 ## Authentication
 
-Snowflake Notebooks: `session.connection.rest.token` is used automatically.
-No PAT or environment variable needed when running inside Snowsight.
+### Snowflake Notebooks (nb01–nb06)
 
-SPCS container: `SNOWFLAKE_TOKEN` environment variable is auto-injected by the platform.
+For most notebook cells, the active session is used automatically — no extra setup.
+
+**Exception: OFS ingest and query calls require a PAT.**
+The OFS ingress proxy rejects session tokens (including `session.connection.rest.token`).
+Both direct REST calls and the SDK's `stream_ingest`/`read_feature_view` are affected.
+
+**One-time PAT setup (required for nb02 sections 2.6 and 2.7, and nb06 section 6.2):**
+
+1. In Snowsight, click your profile icon → **Programmatic Access Tokens**
+2. Click **Add Token**
+3. Name: `FRAUD_DEMO_PAT` | Role: `FRAUD_MLOPS` | Expiry: 30 days
+4. Copy the token value (shown **once only** — save it securely)
+5. In nb02, find the **PAT setup cell** (section 2.0) and paste your token:
+   ```python
+   OFS_PAT = 'your_token_here'
+   ```
+6. Run the cell — it sets `os.environ['SNOWFLAKE_PAT']` for the session
+
+nb06 has the same PAT setup step in cell 1.
+
+### SPCS scoring container (nb04 / production)
+
+`SNOWFLAKE_TOKEN` is auto-injected by the SPCS platform — no PAT needed inside the container.
 
 ## Teardown
 
