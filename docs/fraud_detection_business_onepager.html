@@ -115,6 +115,7 @@
   }
   .side-card ul li:last-child { border-bottom: none; padding-bottom: 0; }
   .bi { flex-shrink: 0; font-size: 11px; margin-top: 1px; }
+  .bi-note { color: #B08000; }
 
   /* ── PLATFORM SIMPLIFICATION ── */
   .platform-box {
@@ -197,7 +198,7 @@
 
   @media print {
     @page { size: A4 portrait; margin: 0; }
-    html  { zoom: 0.75; }
+    html  { zoom: 0.67; }
     body  { width: 820px; }
     .footer { page-break-before: avoid; break-before: avoid; }
   }
@@ -255,23 +256,23 @@
   <div class="section-label">Current Complexity vs. Snowflake Approach</div>
   <div class="two-col">
     <div class="side-card problem">
-      <div class="side-card-title">What Zilch Is Building</div>
+      <div class="side-card-title">What Zilch Has Today</div>
       <ul>
-        <li><span class="bi">⚠</span>Feature freshness still in development — detection window is undefined until it ships</li>
-        <li><span class="bi">⚠</span>7+ services to build, deploy &amp; monitor: Kinesis, Lambda, Glue, RAPIDS, SageMaker, Triton, EKS</li>
-        <li><span class="bi">⚠</span>Custom preprocessing pipeline needed to align training and serving — drift risk on every retrain</li>
-        <li><span class="bi">⚠</span>Multiple security boundaries, credentials, and vendor relationships to manage</li>
-        <li><span class="bi">⚠</span>Engineering bandwidth consumed by infrastructure, not fraud strategy</li>
+        <li><span class="bi">✓</span>Working fraud scoring endpoint — XGBoost model served today via Kinesis &rarr; SageMaker &rarr; DynamoDB &rarr; Triton pipeline</li>
+        <li><span class="bi">✓</span>Transaction data already in Snowflake — the data foundation is in place; the gap is specifically the real-time feature pipeline sitting between Snowflake and the model</li>
+        <li><span class="bi">⚠</span>Feature freshness not yet built — burst detection window is undefined; card-testing transactions look clean until the pipeline catches up</li>
+        <li><span class="bi">⚠</span>Training (SageMaker/RAPIDS) and serving (Triton/DynamoDB) are separate stacks — feature drift risk on every retrain without careful alignment</li>
+        <li><span class="bi">⚠</span>10 services across 3 AWS service families — each scales, fails, and deploys independently; incidents require multiple teams to isolate root cause</li>
       </ul>
     </div>
     <div class="side-card solution">
-      <div class="side-card-title">What You Get with Snowflake</div>
+      <div class="side-card-title">Where Snowflake Closes the Gap</div>
       <ul>
-        <li><span class="bi">✓</span>Sub-2s freshness with no custom build — declare features once, they stream continuously</li>
-        <li><span class="bi">✓</span>Single platform covers ingestion, feature store, model training, serving, and data warehouse</li>
-        <li><span class="bi">✓</span>Identical feature logic in training and serving — model drift is structurally impossible</li>
-        <li><span class="bi">✓</span>One security boundary, one billing relationship, one governance model</li>
-        <li><span class="bi">✓</span>Fraud team focuses on model quality and thresholds — not infrastructure uptime</li>
+        <li><span class="bi">✓</span>Fills the specific gap — sub-2s freshness with no custom build, covering the card-testing detection window the current stack is missing</li>
+        <li><span class="bi">✓</span>Unified feature logic in training and serving — structurally eliminates the drift risk between your SageMaker and Triton paths</li>
+        <li><span class="bi">✓</span>One platform to operate at scale — Snowpipe Streaming, Online Feature Store, SPCS, and Model Registry replace 7+ independently managed services</li>
+        <li><span class="bi bi-note">△</span>Online Feature Store is in Public Preview — not yet GA; Snowflake provides enterprise support terms and committed SLAs for POC engagements</li>
+        <li><span class="bi bi-note">△</span>No data migration required — your data already lives in Snowflake; the AWS pipeline under construction can be replaced rather than ported. Snowflake Customer Engineering can accelerate onboarding</li>
       </ul>
     </div>
   </div>
