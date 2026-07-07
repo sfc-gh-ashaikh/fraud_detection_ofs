@@ -315,11 +315,11 @@
     <div class="impact-card">
       <div class="impact-icon">🛡</div>
       <div class="impact-title">Faster Detection = Less Fraud Loss</div>
-      <div class="impact-body">Stale features show <strong>zero velocity signal</strong> during a card-testing burst. Real-time freshness detects the pattern from txn 2 onwards — blocking the follow-on £500 fraud event before it completes.</div>
+      <div class="impact-body">When fraudsters test a stolen card, they fire 5–10 rapid transactions within seconds. Without real-time data, the fraud model can't see the burst forming — every transaction looks clean until it's too late. With Snowflake, <strong>the pattern is visible from the second transaction</strong> and blocked before the fraud completes.</div>
       <div class="impact-metric">
         <div class="impact-metric-value">£660K–£780K / year</div>
         <div class="impact-metric-scale">&rarr; £1.3M–£1.6M at 2&times; volume</div>
-        <div class="impact-metric-note">24M txns &times; 0.05% fraud rate &times; 20% card-testing share = £1.2M exposure. +55pp burst detection improvement vs. stale features (£500 avg incident cost).</div>
+        <div class="impact-metric-note">24M annual transactions &times; 0.05% fraud rate = 12,000 incidents/yr &times; £500 avg cost = £6M total exposure. Card-testing attacks estimated at 20% of fraud volume (£1.2M). Real-time detection catches ~55% more burst events vs. a model on stale data.</div>
       </div>
     </div>
     <div class="impact-card">
@@ -335,11 +335,11 @@
     <div class="impact-card">
       <div class="impact-icon">⚡</div>
       <div class="impact-title">Faster Model Iteration</div>
-      <div class="impact-body">Monthly cycles replace quarterly — 8 additional iterations/year. Each 4-week faster response to a new attack pattern saves ~£25K. Each 0.1% false decline reduction recaptures ~£2M in legitimate GMV.</div>
+      <div class="impact-body">Fraud patterns evolve constantly — today, updating the model takes months, meaning new attack patterns go undetected while the build is in flight. Snowflake compresses that cycle to weeks, giving the fraud team <strong>8 extra attempts per year</strong> to improve accuracy and reduce both missed fraud and wrongly declined legitimate customers.</div>
       <div class="impact-metric">
         <div class="impact-metric-value">£200K–£300K / year</div>
         <div class="impact-metric-scale">&rarr; £400K–£600K at 2&times; volume</div>
-        <div class="impact-metric-note">8 extra cycles/yr at avg 0.3% recall gain (£30K per 0.5pp at 12K annual incidents) + £25K per new attack pattern caught 4 wks earlier (3–4 patterns/yr). GMV upside from false decline reduction excluded.</div>
+        <div class="impact-metric-note">8 extra model updates/yr vs. quarterly cycles. Each update that catches a new attack pattern 4 weeks earlier saves ~£25K (3–4 patterns/yr). Each improvement in detection accuracy compounds across 24M annual transactions. Revenue upside from fewer false declines excluded.</div>
       </div>
     </div>
   </div>
