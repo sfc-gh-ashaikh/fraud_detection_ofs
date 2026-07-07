@@ -143,11 +143,26 @@
   .impact-card {
     background: #fff; border: 1px solid var(--border);
     border-radius: 7px; padding: 12px 13px;
+    display: flex; flex-direction: column;
   }
   .impact-icon { font-size: 16px; margin-bottom: 5px; }
   .impact-title { font-size: 11px; font-weight: 700; color: var(--snow-dark); margin-bottom: 4px; }
-  .impact-body { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .impact-body { font-size: 11px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
   .impact-body strong { color: var(--pass); }
+  .impact-metric {
+    background: var(--snow-dark); border-radius: 5px;
+    padding: 7px 10px; margin-top: auto;
+  }
+  .impact-metric-value {
+    font-size: 14px; font-weight: 800; color: var(--snow-accent);
+    line-height: 1.1; margin-bottom: 2px;
+  }
+  .impact-metric-scale {
+    font-size: 9.5px; color: #6FCF97; font-weight: 600; margin-bottom: 3px;
+  }
+  .impact-metric-note {
+    font-size: 9px; color: rgba(255,255,255,0.48); line-height: 1.4;
+  }
 
   /* ── WHY NOW ── */
   .why-now-box {
@@ -182,7 +197,7 @@
 
   @media print {
     @page { size: A4 portrait; margin: 0; }
-    html  { zoom: 0.80; }
+    html  { zoom: 0.75; }
     body  { width: 820px; }
     .footer { page-break-before: avoid; break-before: avoid; }
   }
@@ -295,22 +310,37 @@
   </div>
 
   <!-- BUSINESS IMPACT -->
-  <div class="section-label">Business Impact</div>
+  <div class="section-label">Business Impact — Estimated Cost Savings</div>
   <div class="three-col">
     <div class="impact-card">
       <div class="impact-icon">🛡</div>
       <div class="impact-title">Faster Detection = Less Fraud Loss</div>
-      <div class="impact-body">Card-testing bursts are visible from the <strong>second transaction</strong> — within 2 seconds of the first event. A model on stale features cannot see the burst pattern. Every transaction that slips through is a confirmed fraud loss plus chargeback.</div>
+      <div class="impact-body">Stale features show <strong>zero velocity signal</strong> during a card-testing burst. Real-time freshness detects the pattern from txn 2 onwards — blocking the follow-on £500 fraud event before it completes.</div>
+      <div class="impact-metric">
+        <div class="impact-metric-value">£660K–£780K / year</div>
+        <div class="impact-metric-scale">&rarr; £1.3M–£1.6M at 2&times; volume</div>
+        <div class="impact-metric-note">24M txns &times; 0.05% fraud rate &times; 20% card-testing share = £1.2M exposure. +55pp burst detection improvement vs. stale features (£500 avg incident cost).</div>
+      </div>
     </div>
     <div class="impact-card">
       <div class="impact-icon">⚙</div>
       <div class="impact-title">Engineering Cost Reduction</div>
-      <div class="impact-body">Replacing 10 independently operated services with one platform eliminates cross-service incident response and version management overhead. <strong>Fewer services = fewer pages, less on-call burden.</strong> That headcount redeploys to fraud model iteration.</div>
+      <div class="impact-body">The 10-service stack requires ~1.75 FTE-equivalents of ongoing maintenance. Snowflake reduces that to ~0.5 FTE. AWS infrastructure saving is modest at current volume — the primary driver is headcount.</div>
+      <div class="impact-metric">
+        <div class="impact-metric-value">£170K–£220K / year</div>
+        <div class="impact-metric-scale">&rarr; £220K–£300K at 3&times; volume (infra grows, Snowflake scales gradually)</div>
+        <div class="impact-metric-note">~1.25 FTE freed at £130K fully loaded (primary driver). AWS infra saving £7K–£14K/yr at current scale — validated from unit pricing across Kinesis, Glue, EKS, SageMaker, DynamoDB.</div>
+      </div>
     </div>
     <div class="impact-card">
       <div class="impact-icon">⚡</div>
       <div class="impact-title">Faster Model Iteration</div>
-      <div class="impact-body">With training data, features, and serving on one platform, the cycle from <em>new fraud signal identified</em> to <em>model in production</em> compresses from weeks to days. <strong>Faster iteration directly improves catch rates</strong> as attack patterns evolve.</div>
+      <div class="impact-body">Monthly cycles replace quarterly — 8 additional iterations/year. Each 4-week faster response to a new attack pattern saves ~£25K. Each 0.1% false decline reduction recaptures ~£2M in legitimate GMV.</div>
+      <div class="impact-metric">
+        <div class="impact-metric-value">£200K–£300K / year</div>
+        <div class="impact-metric-scale">&rarr; £400K–£600K at 2&times; volume</div>
+        <div class="impact-metric-note">8 extra cycles/yr at avg 0.3% recall gain (£30K per 0.5pp at 12K annual incidents) + £25K per new attack pattern caught 4 wks earlier (3–4 patterns/yr). GMV upside from false decline reduction excluded.</div>
+      </div>
     </div>
   </div>
 
