@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snowflake — Real-Time Fraud Detection for Zilch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --snow-blue:   #29B5E8;
+    --snow-dark:   #0D2B4B;
+    --snow-mid:    #11567F;
+    --snow-light:  #E8F4FB;
+    --snow-accent: #00C7E6;
+    --ink:         #1A2332;
+    --muted:       #5A6577;
+    --border:      #D1E8F5;
+    --pass:        #0F9D58;
+    --pass-light:  #E8F5E9;
+    --warn:        #C62828;
+    --warn-light:  #FFEBEE;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #fff;
+    color: var(--ink);
+    width: 820px;
+    margin: 0 auto;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--snow-dark);
+    padding: 22px 36px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .logo { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .logo-mark {
+    width: 26px; height: 26px;
+    background: var(--snow-blue);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  }
+  .logo-text { font-size: 14px; font-weight: 600; color: #fff; }
+  .header h1 { font-size: 19px; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 3px; }
+  .header .subtitle { font-size: 11.5px; color: rgba(255,255,255,0.6); }
+  .header-tag { text-align: right; font-size: 10.5px; color: rgba(255,255,255,0.45); line-height: 1.9; }
+  .header-tag strong { color: var(--snow-accent); font-weight: 600; font-size: 11px; display: block; }
+
+  /* ── BODY ── */
+  .body { padding: 16px 36px 14px; }
+
+  .section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.3px;
+    text-transform: uppercase; color: var(--snow-mid); margin-bottom: 6px;
+  }
+
+  /* ── CHALLENGE BANNER ── */
+  .challenge-banner {
+    background: var(--warn-light);
+    border-left: 4px solid var(--warn);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 14px;
+  }
+  .challenge-banner p { font-size: 12px; line-height: 1.6; }
+  .challenge-banner strong { color: var(--warn); }
+
+  /* ── OUTCOME METRICS ── */
+  .outcomes-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .outcome-card {
+    border-radius: 7px;
+    padding: 12px 10px 10px;
+    text-align: center;
+  }
+  .oc-blue  { background: var(--snow-dark); }
+  .oc-teal  { background: #004F6E; }
+  .oc-green { background: #0A5C3A; }
+  .oc-gold  { background: #6A4200; }
+  .outcome-value { font-size: 22px; font-weight: 800; color: var(--snow-accent); line-height: 1; margin-bottom: 3px; }
+  .oc-green .outcome-value { color: #6FCF97; }
+  .oc-gold  .outcome-value { color: #F4C45A; }
+  .oc-teal  .outcome-value { color: #90E0EF; }
+  .outcome-label { font-size: 9.5px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+
+  /* ── TWO COLUMN ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+
+  /* ── PROBLEM / SOLUTION CARDS ── */
+  .side-card { border-radius: 7px; padding: 13px 14px; border: 1px solid; }
+  .side-card.problem  { background: var(--warn-light); border-color: #FFCDD2; }
+  .side-card.solution { background: var(--pass-light); border-color: #C8E6C9; }
+  .side-card-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .side-card.problem  .side-card-title { color: #C62828; }
+  .side-card.solution .side-card-title { color: #2E7D32; }
+  .side-card ul { list-style: none; }
+  .side-card ul li {
+    font-size: 11.5px; line-height: 1.5; padding: 4px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .side-card ul li:last-child { border-bottom: none; padding-bottom: 0; }
+  .bi { flex-shrink: 0; font-size: 11px; margin-top: 1px; }
+
+  /* ── PLATFORM SIMPLIFICATION ── */
+  .platform-box {
+    background: #F7FBFE; border: 1px solid var(--border);
+    border-radius: 7px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  .platform-compare {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;
+  }
+  .platform-stack-title {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; margin-bottom: 7px;
+  }
+  .platform-stack-title.current    { color: #C62828; }
+  .platform-stack-title.snowflake  { color: #2E7D32; }
+  .service-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .service-tag {
+    font-size: 9.5px; font-weight: 500;
+    padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+  }
+  .service-tag.current   { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+  .service-tag.snowflake { background: var(--pass-light); color: #2E7D32; border: 1px solid #C8E6C9; }
+  .arrow-col { text-align: center; color: var(--snow-mid); font-size: 20px; }
+
+  /* ── BUSINESS IMPACT ── */
+  .impact-card {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 7px; padding: 12px 13px;
+  }
+  .impact-icon { font-size: 16px; margin-bottom: 5px; }
+  .impact-title { font-size: 11px; font-weight: 700; color: var(--snow-dark); margin-bottom: 4px; }
+  .impact-body { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .impact-body strong { color: var(--pass); }
+
+  /* ── WHY NOW ── */
+  .why-now-box {
+    background: var(--snow-light); border-left: 4px solid var(--snow-blue);
+    padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 14px;
+  }
+  .why-now-box p { font-size: 11.5px; line-height: 1.6; }
+  .why-now-box strong { color: var(--snow-dark); }
+
+  /* ── NEXT STEPS ── */
+  .step-card {
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 10px 12px; display: flex; gap: 9px; align-items: flex-start;
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--snow-dark); color: #fff;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-text { font-size: 11px; line-height: 1.5; color: var(--ink); }
+  .step-text strong { color: var(--snow-dark); display: block; margin-bottom: 1px; font-size: 11.5px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--snow-dark); color: rgba(255,255,255,0.45);
+    padding: 8px 36px; font-size: 9.5px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer .conf { color: var(--snow-accent); font-weight: 600; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 0; }
+    html  { zoom: 0.80; }
+    body  { width: 820px; }
+    .footer { page-break-before: avoid; break-before: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <span class="logo-text">Snowflake</span>
+    </div>
+    <h1>Real-Time Fraud Detection — Business Case</h1>
+    <div class="subtitle">Prepared for Zilch &bull; Head of Fraud &bull; Executive Leadership</div>
+  </div>
+  <div class="header-tag">
+    <strong>Confidential</strong>
+    Customer Engineering<br>
+    July 2026
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- CHALLENGE -->
+  <div class="section-label">The Problem Zilch Is Trying to Solve</div>
+  <div class="challenge-banner">
+    <p>Fraudsters test stolen cards in rapid bursts — often 5–10 low-value transactions within seconds. If your fraud model only sees <strong>stale features</strong>, every transaction in a burst looks clean until it's too late. The loss isn't just the fraudulent spend: it's chargebacks, issuer fees, reputational risk with Thredd, and the engineering cost of building the detection capability from scratch.</p>
+  </div>
+
+  <!-- OUTCOME METRICS -->
+  <div class="section-label">What Snowflake Delivers — Proven in Technical Validation</div>
+  <div class="outcomes-row">
+    <div class="outcome-card oc-blue">
+      <div class="outcome-value">&lt;2s</div>
+      <div class="outcome-label">Feature freshness<br>out of the box</div>
+    </div>
+    <div class="outcome-card oc-teal">
+      <div class="outcome-value">~14ms</div>
+      <div class="outcome-label">End-to-end scoring<br>per transaction</div>
+    </div>
+    <div class="outcome-card oc-green">
+      <div class="outcome-value">1</div>
+      <div class="outcome-label">Platform replacing<br>7+ managed services</div>
+    </div>
+    <div class="outcome-card oc-gold">
+      <div class="outcome-value">Zero</div>
+      <div class="outcome-label">Custom ETL pipelines<br>built or maintained</div>
+    </div>
+  </div>
+
+  <!-- PROBLEM / SOLUTION -->
+  <div class="section-label">Current Complexity vs. Snowflake Approach</div>
+  <div class="two-col">
+    <div class="side-card problem">
+      <div class="side-card-title">What Zilch Is Building</div>
+      <ul>
+        <li><span class="bi">⚠</span>Feature freshness still in development — detection window is undefined until it ships</li>
+        <li><span class="bi">⚠</span>7+ services to build, deploy &amp; monitor: Kinesis, Lambda, Glue, RAPIDS, SageMaker, Triton, EKS</li>
+        <li><span class="bi">⚠</span>Custom preprocessing pipeline needed to align training and serving — drift risk on every retrain</li>
+        <li><span class="bi">⚠</span>Multiple security boundaries, credentials, and vendor relationships to manage</li>
+        <li><span class="bi">⚠</span>Engineering bandwidth consumed by infrastructure, not fraud strategy</li>
+      </ul>
+    </div>
+    <div class="side-card solution">
+      <div class="side-card-title">What You Get with Snowflake</div>
+      <ul>
+        <li><span class="bi">✓</span>Sub-2s freshness with no custom build — declare features once, they stream continuously</li>
+        <li><span class="bi">✓</span>Single platform covers ingestion, feature store, model training, serving, and data warehouse</li>
+        <li><span class="bi">✓</span>Identical feature logic in training and serving — model drift is structurally impossible</li>
+        <li><span class="bi">✓</span>One security boundary, one billing relationship, one governance model</li>
+        <li><span class="bi">✓</span>Fraud team focuses on model quality and thresholds — not infrastructure uptime</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- PLATFORM SIMPLIFICATION -->
+  <div class="section-label">Platform Simplification</div>
+  <div class="platform-box">
+    <div class="platform-compare">
+      <div>
+        <div class="platform-stack-title current">Current AWS/NVIDIA Stack — 7+ Services</div>
+        <div class="service-tags">
+          <span class="service-tag current">Amazon Kinesis</span>
+          <span class="service-tag current">AWS Lambda</span>
+          <span class="service-tag current">Amazon S3</span>
+          <span class="service-tag current">AWS Glue ETL</span>
+          <span class="service-tag current">RAPIDS Preprocessing</span>
+          <span class="service-tag current">Amazon SageMaker</span>
+          <span class="service-tag current">NVIDIA Triton</span>
+          <span class="service-tag current">fraud-engine-service</span>
+          <span class="service-tag current">Amazon EKS</span>
+          <span class="service-tag current">Amazon DynamoDB</span>
+        </div>
+      </div>
+      <div class="arrow-col">&rarr;</div>
+      <div>
+        <div class="platform-stack-title snowflake">Snowflake — One Platform</div>
+        <div class="service-tags">
+          <span class="service-tag snowflake">Snowpipe Streaming</span>
+          <span class="service-tag snowflake">Online Feature Store</span>
+          <span class="service-tag snowflake">Snowpark ML Training</span>
+          <span class="service-tag snowflake">Model Registry</span>
+          <span class="service-tag snowflake">SPCS Scoring Service</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS IMPACT -->
+  <div class="section-label">Business Impact</div>
+  <div class="three-col">
+    <div class="impact-card">
+      <div class="impact-icon">🛡</div>
+      <div class="impact-title">Faster Detection = Less Fraud Loss</div>
+      <div class="impact-body">Card-testing bursts are visible from the <strong>second transaction</strong> — within 2 seconds of the first event. A model on stale features cannot see the burst pattern. Every transaction that slips through is a confirmed fraud loss plus chargeback.</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-icon">⚙</div>
+      <div class="impact-title">Engineering Cost Reduction</div>
+      <div class="impact-body">Replacing 10 independently operated services with one platform eliminates cross-service incident response and version management overhead. <strong>Fewer services = fewer pages, less on-call burden.</strong> That headcount redeploys to fraud model iteration.</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-icon">⚡</div>
+      <div class="impact-title">Faster Model Iteration</div>
+      <div class="impact-body">With training data, features, and serving on one platform, the cycle from <em>new fraud signal identified</em> to <em>model in production</em> compresses from weeks to days. <strong>Faster iteration directly improves catch rates</strong> as attack patterns evolve.</div>
+    </div>
+  </div>
+
+  <!-- WHY NOW -->
+  <div class="section-label">Why Act Now</div>
+  <div class="why-now-box">
+    <p>Zilch's feature freshness component is still being built. <strong>Every week it remains under construction is a week the fraud model runs blind to intra-session patterns.</strong> Snowflake's Online Feature Store is in public preview today — the technical validation in this document was run on live infrastructure. Zilch can have sub-2-second freshness without waiting for a custom build to ship, and without the ongoing burden of maintaining it.</p>
+  </div>
+
+  <!-- NEXT STEPS -->
+  <div class="section-label">Suggested Next Steps</div>
+  <div class="three-col" style="margin-bottom:0;">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-text"><strong>30-Min Architecture Review</strong>Map Zilch's Thredd event flow into the Snowflake ingestion path. Confirm data residency and PrivateLink routing.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>POC on Zilch's Live Data</strong>Run the validated pipeline on a sample of real transaction history. Measure freshness improvement against current baseline.</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>Commercial Sizing</strong>Snowflake scales on consumption — no upfront spend. We provide a TCO comparison against the current AWS/NVIDIA stack.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>Snowflake Inc. &bull; Online Feature Store (Public Preview) &bull; Snowpark Container Services &bull; Snowpark ML</span>
+  <span class="conf">Confidential &bull; Prepared for Zilch</span>
+</div>
+
+</body>
+</html>
