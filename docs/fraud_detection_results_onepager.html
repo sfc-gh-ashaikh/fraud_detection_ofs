@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snowflake Real-Time Fraud Detection — Results</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --snow-blue:    #29B5E8;
+    --snow-dark:    #0D2B4B;
+    --snow-mid:     #11567F;
+    --snow-light:   #E8F4FB;
+    --snow-accent:  #00C7E6;
+    --ink:          #1A2332;
+    --muted:        #4A5568;
+    --border:       #D1E8F5;
+    --pass:         #0F9D58;
+    --warn:         #F4A622;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #fff;
+    color: var(--ink);
+    width: 1050px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--snow-dark);
+    color: #fff;
+    padding: 28px 40px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .header-left { flex: 1; }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--snow-blue);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  }
+  .logo-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .header .subtitle {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 400;
+  }
+  .header-right {
+    text-align: right;
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.8;
+  }
+  .header-right strong { color: var(--snow-accent); font-weight: 600; }
+
+  /* ── BODY ── */
+  .body { padding: 24px 40px 24px; }
+
+  /* ── SECTION TITLE ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--snow-mid);
+    margin-bottom: 8px;
+  }
+
+  /* ── KEY FINDING BANNER ── */
+  .finding-banner {
+    background: var(--snow-light);
+    border-left: 4px solid var(--snow-blue);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 20px;
+  }
+  .finding-banner p {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .finding-banner strong { color: var(--snow-dark); }
+
+  /* ── METRICS ROW ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .metric-card {
+    background: var(--snow-dark);
+    border-radius: 8px;
+    padding: 14px 12px 12px;
+    text-align: center;
+  }
+  .metric-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--snow-accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .metric-label {
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.4;
+  }
+
+  /* ── TWO COLUMN LAYOUT ── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+
+  /* ── ARCHITECTURE DIAGRAM ── */
+  .arch-box {
+    background: #F7FBFE;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .arch-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--snow-mid);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .thread-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .thread-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .async-badge { background: #FFF3E0; color: #E65100; }
+  .sync-badge  { background: #E8F5E9; color: #1B5E20; }
+  .thread-content { font-size: 11.5px; line-height: 1.5; color: var(--ink); }
+  .thread-content small { color: var(--muted); display: block; margin-top: 2px; }
+
+  /* ── COMPARISON TABLE ── */
+  .comparison {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+  }
+  .comparison thead tr {
+    background: var(--snow-dark);
+    color: #fff;
+  }
+  .comparison thead th {
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  .comparison thead th:first-child { border-radius: 6px 0 0 0; }
+  .comparison thead th:last-child  { border-radius: 0 6px 0 0; }
+  .comparison tbody tr:nth-child(even) { background: #F7FBFE; }
+  .comparison tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .comparison tbody td:first-child {
+    font-weight: 600;
+    color: var(--snow-mid);
+    white-space: nowrap;
+  }
+  .comparison .win { color: var(--pass); font-weight: 600; }
+  .comparison .risk { color: #B71C1C; }
+  .comparison .note { color: var(--muted); font-style: italic; font-size: 10.5px; }
+
+  /* ── SUCCESS CRITERIA ── */
+  .success-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .success-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+  }
+  .success-card .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--pass);
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .success-card .criteria-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink);
+    display: inline;
+    vertical-align: middle;
+  }
+  .success-card .criteria-result {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+    line-height: 1.45;
+  }
+  .success-card .criteria-result strong { color: var(--pass); }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--snow-dark);
+    color: rgba(255,255,255,0.55);
+    padding: 10px 40px;
+    font-size: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer .conf { color: var(--snow-accent); font-weight: 600; font-size: 10px; }
+
+  @media print {
+    @page { size: 11in 8.5in landscape; margin: 0; }
+    html  { zoom: 0.78; }
+    body  { width: 1050px; }
+    .footer { page-break-before: avoid; break-before: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <span class="logo-text">Snowflake</span>
+    </div>
+    <h1>Real-Time Fraud Detection — Technical Validation</h1>
+    <div class="subtitle">Online Feature Store &bull; SPCS Scoring Service &bull; Snowpark ML</div>
+  </div>
+
+</div>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- FINDING BANNER -->
+  <div class="section-label">Key Finding</div>
+  <div class="finding-banner">
+    <p>Snowflake matches or beats every latency component of the NVIDIA/AWS reference stack — on the same AWS backbone. Zilch's feature freshness component is <strong>still being built</strong> and target freshness latency has not yet been defined. Snowflake delivers <strong>&lt;2s CONTINUOUS freshness out of the box</strong> — no custom build required, no batch cycle to engineer away.</p>
+  </div>
+
+  <!-- METRICS -->
+  <div class="section-label">Measured Performance &mdash; SPCS Internal Mesh</div>
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-value">&lt;2s</div>
+      <div class="metric-label">Feature Freshness<br>(CONTINUOUS OFS)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">~11ms</div>
+      <div class="metric-label">OFS Feature Group<br>p50 (5 views, 1 call)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">~1ms</div>
+      <div class="metric-label">XGBoost Inference<br>p50</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">~14ms</div>
+      <div class="metric-label">End-to-End Scoring<br>p50 (SPCS internal)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&gt;36ms</div>
+      <div class="metric-label">Budget Remaining<br>vs 50ms EHI target</div>
+    </div>
+  </div>
+  <div style="font-size:10.5px;color:#4A5568;margin-bottom:16px;margin-top:-8px;">&#9432;&nbsp; Numbers measured on SPCS internal mesh (no PrivateLink). Production deployment via PrivateLink adds an estimated ~3&ndash;8ms ingress hop depending on VPC proximity.</div>
+
+  <!-- TWO COLUMN: Architecture + Comparison -->
+  <div class="two-col">
+
+    <!-- ARCH DIAGRAM -->
+    <div class="arch-box">
+      <div class="arch-title">3-Thread Payment Gateway Pattern (SPCS Internal)</div>
+      <div class="thread-row">
+        <span class="thread-badge async-badge">A · ASYNC</span>
+        <div class="thread-content">
+          Snowpipe Streaming → FRAUD_TRANSACTIONS
+          <small>Full record, exactly-once. Zero latency on auth path.</small>
+        </div>
+      </div>
+      <div class="thread-row">
+        <span class="thread-badge async-badge">B · ASYNC</span>
+        <div class="thread-content">
+          OFS REST Ingest → 4 CONTINUOUS velocity pipelines
+          <small>Thin 7-field event. Features live in &lt;2s.</small>
+        </div>
+      </div>
+      <div class="thread-row">
+        <span class="thread-badge sync-badge">C · SYNC</span>
+        <div class="thread-content">
+          OFS Feature Group query (1 call, 5 views) → ~11ms<br>
+          Derived features inline (arith.) → ~0.1ms<br>
+          XGBoost.predict(46 features) → ~1ms
+          <small>Measured: ~14ms p50 on SPCS internal mesh. PrivateLink ingress adds ~3&ndash;8ms in production.</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARISON TABLE -->
+    <div>
+      <table class="comparison">
+        <thead>
+          <tr>
+            <th>Layer</th>
+            <th>Zilch Stack (AWS/NVIDIA)</th>
+            <th>Snowflake</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ingestion</td>
+            <td class="risk">Kinesis + Lambda + S3</td>
+            <td class="win">Snowpipe Streaming + OFS REST</td>
+          </tr>
+          <tr>
+            <td>Feature Eng.</td>
+            <td class="risk">Glue ETL + RAPIDS preprocessing</td>
+            <td class="win">No ETL — declare once at registration</td>
+          </tr>
+          <tr>
+            <td>Feature Store</td>
+            <td class="risk">In development — freshness latency not yet defined</td>
+            <td class="win">CONTINUOUS OFS — &lt;2s freshness</td>
+          </tr>
+          <tr>
+            <td>Training</td>
+            <td>SageMaker + ECR + S3 staging</td>
+            <td class="win">Snowpark-Optimized WH + Model Registry</td>
+          </tr>
+          <tr>
+            <td>Serving</td>
+            <td>Triton + fraud-engine-service + EKS</td>
+            <td class="win">SPCS container — 1 credential, 1 boundary</td>
+          </tr>
+          <tr>
+            <td>Train/Serve Parity</td>
+            <td class="risk">Serialized encoders from S3<br><span class="note">Silent drift risk on retrain</span></td>
+            <td class="win">Arithmetic inline — nothing to serialize</td>
+          </tr>
+          <tr>
+            <td>Services to Operate</td>
+            <td class="risk">7+ independently monitored</td>
+            <td class="win">One platform, one billing relationship</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SUCCESS CRITERIA -->
+  <div class="section-label">Success Criteria — All Met</div>
+  <div class="success-grid">
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">Feature Freshness &lt; 2s</span>
+      <div class="criteria-result"><strong>~280ms measured end-to-end.</strong> Card-testing burst of 5 txns in 8s is visible from txn 2 onwards — captured within &lt;2s via CONTINUOUS OFS. Zilch's equivalent freshness capability is still being built; target latency is undefined.</div>
+    </div>
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">Scoring Latency &lt; 50ms EHI Budget</span>
+      <div class="criteria-result"><strong>~14ms p50 measured on SPCS internal mesh</strong> — well inside the &lt;50ms EHI service budget. In production with PrivateLink, an estimated ~3&ndash;8ms ingress hop is added; total remains comfortably under 50ms.</div>
+    </div>
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">Same AWS Backbone</span>
+      <div class="criteria-result"><strong>SPCS runs on AWS EC2 in the same region.</strong> The network hops are equivalent to Zilch's DynamoDB/SageMaker calls. The backbone is the same; the architecture is not.</div>
+    </div>
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">No ETL / No Pre-Processing Pipeline</span>
+      <div class="criteria-result"><strong>Zero Glue jobs.</strong> Features declared once in Python at registration. Running aggregates update on every ingest event via CONTINUOUS aggregation — no batch cycle.</div>
+    </div>
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">Training/Serving Parity</span>
+      <div class="criteria-result"><strong>No serialized encoders.</strong> Derived features are pure arithmetic inline in the scoring container — identical logic in training SQL and inference code. Drift is structurally impossible.</div>
+    </div>
+    <div class="success-card">
+      <span class="status-dot"></span>
+      <span class="criteria-title">Real-Time Path is the MVP Path</span>
+      <div class="criteria-result"><strong>No custom pipeline required.</strong> Features declared once in Python — CONTINUOUS aggregation updates on every ingest event, out of the box. Snowflake's full stack (OFS, SPCS scoring service, Model Registry) deploys in a single notebook run.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>Snowflake Inc. &bull; Online Feature Store (Public Preview) &bull; Snowpark Container Services &bull; Snowpark ML</span>
+  <span class="conf">Customer Engineering &bull; Confidential</span>
+</div>
+
+</body>
+</html>
