@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
 
@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir \
     fastapi==0.115.0 \
     uvicorn[standard]==0.32.0 \
     xgboost==2.1.1 \
+    scikit-learn==1.5.2 \
     requests==2.32.3 \
     numpy==1.26.4
 

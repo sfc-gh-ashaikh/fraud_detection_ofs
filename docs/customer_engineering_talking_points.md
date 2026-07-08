@@ -65,14 +65,14 @@ Payment Backend  (EKS/ECS service, same AWS region as Snowflake account)
       │
       └── Thread C  [SYNC — blocks until fraud score is returned]
           HTTP POST ──► AWS API Gateway ──► PrivateLink ──► SPCS scoring container
-          ├── 4 concurrent OFS REST lookups     (~12ms p50)
-          ├── Derived feature computation inline (~1ms)
-          └── XGBoost inference                  (~5ms p50)
-          Returns: {fraud_probability, decision}  (~20-25ms p50 total)
+          ├── Feature Group query (1 OFS call, all 5 FVs)  (~11ms p50)
+          ├── Derived feature computation inline             (~0.1ms)
+          └── XGBoost inference                              (~1ms p50)
+          Returns: {fraud_probability, decision}  (~14ms p50 internal / ~17-22ms over PrivateLink)
                 │
                 ▼
          Visa / Mastercard network response
-         (100-200ms authorization timeout — 25ms leaves 75-180ms budget for the rest of the stack)
+         (100-200ms authorization timeout — 22ms leaves 78-178ms budget for the rest of the stack)
 ```
 
 **The critical sequencing insight**: Threads A and B do not block the authorization decision. Thread
@@ -338,10 +338,10 @@ they designed the architecture to solve.
 
 ```
 Incoming authorization request
-  → 4 concurrent OFS REST lookups over SPCS internal mesh  (~12ms p50)
-  → Compute ~30 derived features inline                      (~1ms)
-  → XGBoost.predict(147 features)                            (~5ms p50)
-  → Return fraud probability + decision                      (~17ms internal / ~20-25ms production)
+  → Feature Group query (1 OFS call, all 5 FVs, internal mesh)  (~11ms p50)
+  → Compute ~30 derived features inline                           (~0.1ms)
+  → XGBoost.predict(~46 features)                                 (~1ms p50)
+  → Return fraud probability + decision                           (~14ms internal / ~17-22ms production)
 ```
 
 **On NVIDIA Triton and TensorRT:** TensorRT is a GPU graph optimization runtime — it provides
@@ -448,11 +448,11 @@ Zilch volume) before go-live is a production checklist item.
 | Metric | Value |
 |---|---|
 | Feature freshness (velocity) | < 2 seconds — measured ~280ms end-to-end |
-| OFS lookup latency | ~12ms p50 (4 entities concurrent, SPCS internal mesh) |
-| XGBoost inference | ~5ms p50 |
-| End-to-end scoring (internal mesh) | ~17ms p50 |
-| End-to-end scoring (with PrivateLink inbound) | ~20-25ms p50 |
-| Visa/Mastercard authorization timeout | ~100-200ms — 25ms leaves 75-175ms budget |
+| OFS Feature Group lookup latency | ~11ms p50 (1 call, all 5 FVs, SPCS internal mesh) |
+| XGBoost inference | ~1ms p50 |
+| End-to-end scoring (internal mesh) | ~14ms p50 |
+| End-to-end scoring (with PrivateLink inbound) | ~17-22ms p50 |
+| Visa/Mastercard authorization timeout | ~100-200ms — 22ms leaves 78-178ms budget |
 | Training cycle | ~5 minutes on Snowpark-Optimized MEDIUM |
 | Training warehouse cost | ~0.5 credits/run, suspended at idle |
 | Fraud recall at 0.05% fraud rate | ~80% (card-testing velocity as primary signal) |

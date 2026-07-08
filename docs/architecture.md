@@ -22,15 +22,14 @@ Customer taps card
   │
   ▼
 ④ SPCS container (optimised scoring path):
-   ├── ONE SQL join across 4 Online Feature Tables  (~10ms p50)
-   │   customer + merchant + DPAN + IP velocity in 1 round-trip
-   │   (vs old: 4 concurrent SDK calls = 4 round-trips)
-   ├── Customer profile features from in-memory cache (~0ms)
-   ├── Inline derived feature computation             (~0.1ms)
-   └── XGBoost inference                              (~5ms p50)
+   ├── Feature Group query (1 OFS round-trip, all 5 FVs)  (~11ms p50)
+   │   FRAUD_SCORING_FG: customer + merchant + DPAN + IP velocity + profile
+   │   Uses "object_type": "feature_group" in REST API
+   ├── Inline derived feature computation                   (~0.1ms)
+   └── XGBoost inference                                    (~1ms p50)
   │
   ▼
-⑤ Decision: approve / flag / block            (~17ms total p50)
+⑤ Decision: approve / flag / block            (~14ms total p50)
   │
   └──► Prediction logged to INFERENCE_LOG
 ```
@@ -126,10 +125,10 @@ AWS API Gateway
       │
 SPCS Scoring Container (FRAUD_OFS_CPU_POOL)
       │
-      ├── REST GET → Online FS (4 entity velocity lookups, concurrent)
-      │               └── Postgres-backed, PrivateLink URL
+      ├── Feature Group query → Online FS (1 round-trip, all 5 FVs)
+      │               └── Postgres-backed, internal SPCS mesh URL
       ├── Inline derived feature computation
-      └── XGBoost.predict(147 features)
+      └── XGBoost.predict(~46 features)
       │
       ▼
 Fraud probability → approve / flag / block
@@ -140,7 +139,7 @@ Fraud probability → approve / flag / block
 | Requirement | How it's met |
 |---|---|
 | Feature freshness < 2s | CONTINUOUS stream aggregation via Postgres-backed Online FS |
-| End-to-end latency ~15ms p50 | FeatureGroup (1 round-trip) + XGBoost via SPCS internal mesh |
+| End-to-end latency ~14ms p50 | FeatureGroup (1 round-trip) + XGBoost via SPCS internal mesh |
 | No public exposure | PrivateLink + private SPCS endpoint |
 | Compliance (PCI/FCA) | No data leaves Snowflake's network; full inference audit log |
 | Scalability | SPCS auto-scales 1-2 nodes; Online FS scales horizontally |
@@ -161,8 +160,8 @@ payment gateway (via AWS API Gateway) into the SPCS scoring container:
 ```
 Customer VPC                              Snowflake SPCS cluster
 ─────────────                             ──────────────────────
-API Gateway ──► PrivateLink (+3-8ms) ──► Scoring Container ──► OFS (internal, ~12ms)
-                                                             └──► XGBoost (local, ~5ms)
+API Gateway ──► PrivateLink (+3-8ms) ──► Scoring Container ──► OFS (internal, ~11ms)
+                                                             └──► XGBoost (local, ~1ms)
 ```
 
 | Network path | Added latency | When it applies |
@@ -172,7 +171,7 @@ API Gateway ──► PrivateLink (+3-8ms) ──► Scoring Container ──►
 | PrivateLink (cross-AZ) | +5-8ms | If caller is in a different AZ |
 | TLS handshake | +2-5ms (first req only) | Amortized to ~0ms with connection pooling |
 
-**Production estimate:** ~20-25ms p50 total (17ms internal + 3-8ms PrivateLink inbound).
+**Production estimate:** ~17-22ms p50 total (14ms internal + 3-8ms PrivateLink inbound).
 
 To minimise PrivateLink overhead:
 - Deploy the caller (API Gateway / Lambda) in the **same AZ** as the Snowflake account
