@@ -247,6 +247,36 @@
   }
   .success-card .criteria-result strong { color: var(--pass); }
 
+  /* ── SIDE CARDS (comparison grid) ── */
+  .side-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .side-card {
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .side-card.problem  { background: #FFF5F5; border: 1px solid #FFCDD2; }
+  .side-card.solution { background: #F1F8F4; border: 1px solid #C8E6C9; }
+  .side-card-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .side-card.problem  .side-card-title { color: #C62828; }
+  .side-card.solution .side-card-title { color: #2E7D32; }
+  .side-card ul { list-style: none; }
+  .side-card ul li {
+    font-size: 11px; line-height: 1.5; padding: 3px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .side-card ul li:last-child { border-bottom: none; padding-bottom: 0; }
+  .bi { flex-shrink: 0; font-size: 10.5px; margin-top: 1px; }
+
   /* ── FOOTER ── */
   .footer {
     background: var(--snow-dark);
@@ -348,54 +378,27 @@
       </div>
     </div>
 
-    <!-- COMPARISON TABLE -->
-    <div>
-      <table class="comparison">
-        <thead>
-          <tr>
-            <th>Layer</th>
-            <th>Zilch Stack (AWS/NVIDIA)</th>
-            <th>Snowflake</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Ingestion</td>
-            <td class="risk">Kinesis + Lambda + S3</td>
-            <td class="win">Snowpipe Streaming + OFS REST</td>
-          </tr>
-          <tr>
-            <td>Feature Eng.</td>
-            <td class="risk">Glue ETL + RAPIDS preprocessing</td>
-            <td class="win">No ETL — declare once at registration</td>
-          </tr>
-          <tr>
-            <td>Feature Store</td>
-            <td class="risk">In development — freshness latency not yet defined</td>
-            <td class="win">CONTINUOUS OFS — &lt;2s freshness</td>
-          </tr>
-          <tr>
-            <td>Training</td>
-            <td>SageMaker + ECR + S3 staging</td>
-            <td class="win">Snowpark-Optimized WH + Model Registry</td>
-          </tr>
-          <tr>
-            <td>Serving</td>
-            <td>Triton + fraud-engine-service + EKS</td>
-            <td class="win">SPCS container — 1 credential, 1 boundary</td>
-          </tr>
-          <tr>
-            <td>Train/Serve Parity</td>
-            <td class="risk">Serialized encoders from S3<br><span class="note">Silent drift risk on retrain</span></td>
-            <td class="win">Arithmetic inline — nothing to serialize</td>
-          </tr>
-          <tr>
-            <td>Services to Operate</td>
-            <td class="risk">7+ independently monitored</td>
-            <td class="win">One platform, one billing relationship</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="side-cards">
+      <div class="side-card problem">
+        <div class="side-card-title">What Zilch Has Today</div>
+        <ul>
+          <li><span class="bi">✓</span>Working fraud scoring endpoint &mdash; XGBoost served via Kinesis &rarr; SageMaker &rarr; DynamoDB &rarr; Triton pipeline</li>
+          <li><span class="bi">✓</span>Transaction data already in Snowflake &mdash; data foundation in place; the gap is the real-time feature pipeline between Snowflake and the model</li>
+          <li><span class="bi">⚠</span>Feature freshness not yet built &mdash; burst detection window undefined; card-testing transactions look clean until the pipeline catches up</li>
+          <li><span class="bi">⚠</span>Training (SageMaker/RAPIDS) and serving (Triton/DynamoDB) are separate stacks &mdash; feature drift risk on every retrain</li>
+          <li><span class="bi">⚠</span>10 services across 3 AWS service families &mdash; each scales, fails, and deploys independently</li>
+        </ul>
+      </div>
+      <div class="side-card solution">
+        <div class="side-card-title">Where Snowflake Closes the Gap</div>
+        <ul>
+          <li><span class="bi">✓</span>Fills the specific gap &mdash; sub-2s freshness with no custom build, covering the burst detection window the current stack is missing</li>
+          <li><span class="bi">✓</span>Unified feature logic in training and serving &mdash; structurally eliminates drift risk between SageMaker and Triton paths</li>
+          <li><span class="bi">✓</span>No data egress required &mdash; all training and serving data stays inside Snowflake; no S3 staging, no features exported out of your data platform</li>
+          <li><span class="bi">✓</span>One platform to operate &mdash; Snowpipe Streaming, OFS, SPCS, and Model Registry replace 7+ independently managed services</li>
+          <li><span class="bi">⚠</span>Online Feature Store in Public Preview &mdash; not yet GA; enterprise support and SLAs available for POC engagements</li>
+        </ul>
+      </div>
     </div>
   </div>
 
