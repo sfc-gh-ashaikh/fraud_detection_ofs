@@ -109,7 +109,7 @@
   /* ── METRICS ROW ── */
   .metrics-row {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     margin-bottom: 20px;
   }
@@ -340,10 +340,7 @@
       <div class="metric-value">~14ms</div>
       <div class="metric-label">End-to-End Scoring<br>p50 (SPCS internal)</div>
     </div>
-    <div class="metric-card">
-      <div class="metric-value">&gt;36ms</div>
-      <div class="metric-label">Budget Remaining<br>vs 50ms EHI target</div>
-    </div>
+
   </div>
   <div style="font-size:10.5px;color:#4A5568;margin-bottom:16px;margin-top:-8px;">&#9432;&nbsp; Numbers measured on SPCS internal mesh (no PrivateLink). Production deployment via PrivateLink adds an estimated ~3&ndash;8ms ingress hop depending on VPC proximity.</div>
 
