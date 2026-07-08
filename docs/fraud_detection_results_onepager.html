@@ -247,6 +247,43 @@
   }
   .success-card .criteria-result strong { color: var(--pass); }
 
+  /* ── VPC CALLOUT ── */
+  .vpc-callout {
+    background: #F0F4FF;
+    border-left: 3px solid #3B5BDB;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+  .vpc-callout-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: #3B5BDB;
+    margin-bottom: 6px;
+  }
+  .vpc-callout p {
+    font-size: 10.5px;
+    color: #2D3748;
+    margin: 0 0 6px 0;
+    line-height: 1.5;
+  }
+  .vpc-callout ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .vpc-callout ul li {
+    font-size: 10.5px;
+    color: #2D3748;
+    line-height: 1.5;
+    padding: 2px 0;
+    display: flex;
+    gap: 6px;
+  }
+  .vpc-callout ul li::before { content: '•'; color: #3B5BDB; flex-shrink: 0; }
+
   /* ── SIDE CARDS (comparison grid) ── */
   .side-cards {
     display: grid;
@@ -291,7 +328,7 @@
 
   @media print {
     @page { size: 11in 8.5in landscape; margin: 0; }
-    html  { zoom: 0.78; }
+    html  { zoom: 0.70; }
     body  { width: 1050px; }
     .footer { page-break-before: avoid; break-before: avoid; }
   }
@@ -397,6 +434,17 @@
         </ul>
       </div>
     </div>
+  </div>
+
+  <!-- VPC CONCERN CALLOUT -->
+  <div class="vpc-callout">
+    <div class="vpc-callout-title">On the &ldquo;Same AWS VPC&rdquo; Concern</div>
+    <p>&ldquo;Same VPC&rdquo; prevents public internet routing &mdash; it does not eliminate service-hop latency. A DynamoDB read from within the same AWS VPC still invokes a managed service endpoint over HTTP (p99 under load: 10&ndash;30ms). A SageMaker endpoint invocation adds another 5&ndash;20ms of service-plane overhead before model execution begins. Per-hop cost exists regardless of VPC boundary.</p>
+    <ul>
+      <li><strong>SPCS runs on AWS EC2 in the same AWS region as Zilch&rsquo;s infrastructure.</strong> The physical network is identical.</li>
+      <li><strong>AWS PrivateLink connects Zilch&rsquo;s VPC directly to Snowflake&rsquo;s VPC without the public internet</strong> &mdash; the same networking primitive AWS uses for its own managed service endpoints. The ~3&ndash;8ms ingress hop is comparable to an EKS &rarr; DynamoDB or EKS &rarr; SageMaker call in Zilch&rsquo;s current stack.</li>
+      <li><strong>Fewer hops at equivalent per-hop cost is structurally faster.</strong> Zilch&rsquo;s current path: EHI &rarr; API Gateway &rarr; Kinesis &rarr; SageMaker &rarr; DynamoDB &rarr; Triton (~5 service hops). Snowflake path: EHI &rarr; PrivateLink &rarr; SPCS &rarr; OFS internal mesh (~2 hops). ~14ms p99 is the measured result.</li>
+    </ul>
   </div>
 
   <!-- SUCCESS CRITERIA -->
