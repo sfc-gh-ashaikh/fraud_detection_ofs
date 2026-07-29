@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="snowflake-source" content="cortex-agent-authored" />
+  <title>Real-Time Fraud Detection — Zilch CTO Deck</title>
+  <script type="application/json" id="snowflake-report-metadata">
+  {
+    "generated": "2026-07-29",
+    "intent": "CTO presentation for Zilch — real-time fraud detection proof of concept",
+    "sections": [
+      { "id": "slide-1", "title": "Cover" },
+      { "id": "slide-2", "title": "The Fraud Problem" },
+      { "id": "slide-3", "title": "Where Zilch Stands Today" },
+      { "id": "slide-4", "title": "What We Built" },
+      { "id": "slide-5", "title": "Architecture Comparison" },
+      { "id": "slide-6", "title": "Measured Results" },
+      { "id": "slide-7", "title": "Key Benefits" },
+      { "id": "slide-8", "title": "Cost of Inaction" },
+      { "id": "slide-9", "title": "Next Steps" }
+    ]
+  }
+  </script>
+  <style>
+    /* ── Reset & base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #0A2F5F;
+      --blue:    #29B5E8;
+      --blue-lt: #E8F7FD;
+      --green:   #2E7D32;
+      --green-lt:#F1F8F4;
+      --red:     #C62828;
+      --red-lt:  #FFF5F5;
+      --amber:   #B08000;
+      --amber-lt:#FFFBEB;
+      --text:    #1A202C;
+      --muted:   #4A5568;
+      --border:  #E2E8F0;
+      --white:   #FFFFFF;
+      --slide-w: 1280px;
+      --slide-h: 720px;
+    }
+
+    html, body {
+      background: #1a1a2e;
+      font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    /* ── Slide container ───────────────────────────────────────────────────── */
+    .slide {
+      width: var(--slide-w);
+      height: var(--slide-h);
+      background: var(--white);
+      margin: 20px auto;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    /* ── Common header bar ─────────────────────────────────────────────────── */
+    .slide-header {
+      background: var(--navy);
+      color: var(--white);
+      padding: 14px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .slide-header .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--white);
+    }
+    .slide-header .logo-text span { color: var(--blue); }
+    .slide-header .deck-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    /* ── Common footer ─────────────────────────────────────────────────────── */
+    .slide-footer {
+      background: var(--navy);
+      color: rgba(255,255,255,0.5);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 7px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .slide-footer .page-num { color: rgba(255,255,255,0.4); }
+
+    /* ── Slide body ────────────────────────────────────────────────────────── */
+    .slide-body {
+      flex: 1;
+      padding: 32px 48px 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide-headline {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.25;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+    .slide-headline .hl-blue { color: var(--blue); }
+    .slide-headline .hl-green { color: var(--green); }
+
+    /* ── Utility ───────────────────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; flex: 1; }
+
+    .card {
+      border-radius: 8px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    ul.check-list { list-style: none; }
+    ul.check-list li {
+      font-size: 13px;
+      line-height: 1.55;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      color: var(--text);
+    }
+    ul.check-list li:last-child { border-bottom: none; }
+    ul.check-list li .icon { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+
+    table.comp {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.comp th, table.comp td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    table.comp th {
+      background: var(--navy);
+      color: var(--white);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.4px;
+    }
+    table.comp tr:nth-child(even) td { background: #F7FAFC; }
+    table.comp td:first-child { font-weight: 600; color: var(--navy); }
+    table.comp td.aws { color: var(--red); }
+    table.comp td.sf  { color: var(--green); font-weight: 600; }
+
+    /* ── Metric tiles ──────────────────────────────────────────────────────── */
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .metric-tile {
+      background: var(--navy);
+      border-radius: 10px;
+      padding: 18px 16px;
+      text-align: center;
+      color: var(--white);
+    }
+    .metric-tile .val {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--blue);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .metric-tile .lbl { font-size: 11px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+
+    /* ── Check row ─────────────────────────────────────────────────────────── */
+    .criteria-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .criteria-pill {
+      background: var(--green-lt);
+      border: 1px solid #C8E6C9;
+      color: var(--green);
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── 3-thread diagram ──────────────────────────────────────────────────── */
+    .thread-box {
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .thread-box .thread-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .thread-async { background: #EBF8FF; border: 1px solid #BEE3F8; }
+    .thread-async .thread-tag { background: #2B6CB0; color: white; }
+    .thread-sync  { background: var(--green-lt); border: 1px solid #C8E6C9; }
+    .thread-sync .thread-tag  { background: var(--green); color: white; }
+
+    .arrow-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blue);
+      font-size: 22px;
+      font-weight: 300;
+    }
+
+    /* ── Cover slide specific ──────────────────────────────────────────────── */
+    .cover-body {
+      flex: 1;
+      background: linear-gradient(135deg, var(--navy) 0%, #1a4a7a 60%, #0d3b6e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 0 80px;
+    }
+    .cover-tag {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 16px;
+    }
+    .cover-title {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .cover-title .blue-line { color: var(--blue); }
+    .cover-sub {
+      font-size: 16px;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 40px;
+    }
+    .cover-pills {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cover-pill {
+      background: rgba(41,181,232,0.15);
+      border: 1px solid rgba(41,181,232,0.4);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 20px;
+    }
+    .cover-accent-bar {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 6px;
+      background: linear-gradient(180deg, var(--blue) 0%, rgba(41,181,232,0.2) 100%);
+    }
+
+    /* ── Problem slide ─────────────────────────────────────────────────────── */
+    .burst-timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 12px 0;
+      flex-shrink: 0;
+    }
+    .txn-block {
+      flex: 1;
+      text-align: center;
+      padding: 10px 4px;
+      background: #EBF8FF;
+      border: 1px solid #BEE3F8;
+      border-right: none;
+      font-size: 11px;
+      font-weight: 600;
+      color: #2B6CB0;
+      position: relative;
+    }
+    .txn-block:first-child { border-radius: 6px 0 0 6px; }
+    .txn-block.fraud-confirmed {
+      background: var(--red-lt);
+      border: 1px solid #FFCDD2;
+      color: var(--red);
+      border-radius: 0 6px 6px 0;
+      flex: 1.4;
+    }
+    .txn-block .approved-badge {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--green);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+    .txn-block .status-badge {
+      display: block;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--red);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Benefits slide ────────────────────────────────────────────────────── */
+    .benefit-card {
+      border-radius: 8px;
+      padding: 18px;
+      height: 100%;
+    }
+    .benefit-card .b-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid;
+    }
+    .benefit-card ul { list-style: none; }
+    .benefit-card ul li {
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      color: var(--text);
+    }
+    .benefit-card ul li:last-child { border-bottom: none; }
+    .benefit-card ul li strong { display: block; font-size: 13px; }
+
+    .bc-latency  { background: #EBF8FF; border: 1px solid #BEE3F8; }
+    .bc-latency  .b-title { color: #2B6CB0; border-color: #2B6CB0; }
+    .bc-cost     { background: var(--green-lt); border: 1px solid #C8E6C9; }
+    .bc-cost     .b-title { color: var(--green); border-color: var(--green); }
+    .bc-ops      { background: var(--amber-lt); border: 1px solid #F6CC6C; }
+    .bc-ops      .b-title { color: var(--amber); border-color: var(--amber); }
+
+    /* ── Inaction slide ────────────────────────────────────────────────────── */
+    .freshness-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .freshness-table th {
+      background: var(--navy);
+      color: white;
+      padding: 10px 14px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      text-align: left;
+    }
+    .freshness-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .freshness-table tr.miss td { background: var(--red-lt); color: var(--red); font-weight: 500; }
+    .freshness-table tr.pass td { background: var(--green-lt); color: var(--green); font-weight: 600; }
+    .freshness-table td:first-child { font-weight: 600; }
+
+    /* ── Next steps ────────────────────────────────────────────────────────── */
+    .step-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--blue);
+      border-radius: 6px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .step-num {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--blue);
+      margin-bottom: 4px;
+    }
+    .step-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+    .step-body  { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+    .callout-box {
+      background: var(--blue-lt);
+      border: 1px solid #BEE3F8;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #2B6CB0;
+      line-height: 1.6;
+      margin-top: 12px;
+    }
+
+    /* ── Print / PDF ───────────────────────────────────────────────────────── */
+    @media print {
+      html, body { background: white; }
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+        break-after: page;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 1 — COVER
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-1">
+  <div class="cover-body">
+    <div class="cover-tag">Customer Engineering · Confidential · July 2026</div>
+    <div class="cover-title">
+      Real-Time<br>
+      <span class="blue-line">Fraud Detection</span><br>
+      on Snowflake
+    </div>
+    <div class="cover-sub">
+      Proof of Concept — Prepared for Zilch CTO
+    </div>
+    <div class="cover-pills">
+      <span class="cover-pill">Online Feature Store</span>
+      <span class="cover-pill">SPCS Scoring Service</span>
+      <span class="cover-pill">Snowpark ML</span>
+      <span class="cover-pill">Model Registry</span>
+    </div>
+    <div class="cover-accent-bar"></div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Online Feature Store (Public Preview) · Snowpark Container Services · Snowpark ML</span>
+    <span class="page-num">1 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 2 — THE FRAUD PROBLEM
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-2">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">The Problem</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      Card testing attacks complete in seconds.<br>
+      <span class="hl-blue">A model on stale features approves every transaction.</span>
+    </div>
+
+    <div style="display:flex;gap:28px;flex:1;align-items:flex-start;">
+      <div style="flex:1.2;">
+        <p style="font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:16px;">
+          Fraudsters fire <strong style="color:var(--text);">5–10 rapid transactions in under 30 seconds</strong> to validate stolen card credentials before the card is blocked. If your model only sees yesterday's velocity data, every transaction in the burst looks clean — until the attack is over.
+        </p>
+
+        <div class="burst-timeline">
+          <div class="txn-block">Txn 1<span class="approved-badge">APPROVED</span></div>
+          <div class="txn-block">Txn 2<span class="approved-badge">APPROVED</span></div>
+          <div class="txn-block">Txn 3<span class="approved-badge">APPROVED</span></div>
+          <div class="txn-block">Txn 4<span class="approved-badge">APPROVED</span></div>
+          <div class="txn-block">Txn 5<span class="approved-badge">APPROVED</span></div>
+          <div class="txn-block fraud-confirmed">Chargeback<span class="status-badge">TOO LATE</span></div>
+        </div>
+        <p style="font-size:10.5px;color:var(--muted);margin-top:6px;">All 5 transactions approved in &lt;30s. Fraud confirmed after the fact.</p>
+
+        <div style="background:var(--amber-lt);border:1px solid #F6CC6C;border-radius:7px;padding:12px 16px;margin-top:16px;">
+          <p style="font-size:13px;color:#7C5800;font-weight:500;line-height:1.6;">
+            <strong>This is not a model accuracy problem.</strong><br>
+            The same model, same weights, same threshold — only feature freshness changes. Stale features make the burst invisible.
+          </p>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+        <div class="card" style="border-left:3px solid var(--red);">
+          <div class="card-title" style="color:var(--red);">The Losses Go Beyond the Fraud Spend</div>
+          <ul class="check-list">
+            <li><span class="icon" style="color:var(--red);">▶</span>Chargebacks — reversed even after approval</li>
+            <li><span class="icon" style="color:var(--red);">▶</span>Issuer fees on every chargeback dispute</li>
+            <li><span class="icon" style="color:var(--red);">▶</span>Reputational risk with Thredd</li>
+            <li><span class="icon" style="color:var(--red);">▶</span>Engineering cost to build detection from scratch</li>
+          </ul>
+        </div>
+        <div class="card" style="border-left:3px solid var(--navy);background:#F7FAFC;">
+          <div class="card-title" style="color:var(--navy);">Estimated Exposure at Current Volume</div>
+          <ul class="check-list">
+            <li><span class="icon">•</span>24M transactions/yr · 0.05% fraud rate = 12,000 incidents/yr</li>
+            <li><span class="icon">•</span>Card-testing estimated at 20% of fraud volume</li>
+            <li><span class="icon">•</span><strong style="color:var(--red);">~£1.2M/yr</strong> directly attributable to burst attacks on stale features</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">2 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 3 — WHERE ZILCH STANDS TODAY
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-3">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Current State</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      The foundation is solid.<br>
+      <span class="hl-blue">One missing connection is costing you detections.</span>
+    </div>
+
+    <div class="two-col" style="flex:1;">
+      <div class="card" style="background:var(--green-lt);border:1px solid #C8E6C9;">
+        <div class="card-title" style="color:var(--green);">What's Working Today</div>
+        <ul class="check-list">
+          <li>
+            <span class="icon" style="color:var(--green);">✓</span>
+            <span><strong>XGBoost model in production</strong><br>
+            Kinesis → SageMaker → DynamoDB → Triton — fraud scoring is live</span>
+          </li>
+          <li>
+            <span class="icon" style="color:var(--green);">✓</span>
+            <span><strong>Transaction data already in Snowflake</strong><br>
+            The data foundation is in place — Snowflake is not a migration</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card" style="background:var(--red-lt);border:1px solid #FFCDD2;">
+        <div class="card-title" style="color:var(--red);">The Three Gaps</div>
+        <ul class="check-list">
+          <li>
+            <span class="icon" style="color:var(--red);">⚠</span>
+            <span><strong>Feature freshness not yet built</strong><br>
+            Burst detection window undefined — card-testing transactions look clean until the pipeline catches up</span>
+          </li>
+          <li>
+            <span class="icon" style="color:var(--amber);">⚠</span>
+            <span><strong>Training and serving in separate stacks</strong><br>
+            SageMaker/RAPIDS training vs Triton/DynamoDB serving — feature drift risk on every retrain without careful alignment</span>
+          </li>
+          <li>
+            <span class="icon" style="color:var(--amber);">⚠</span>
+            <span><strong>10 services across 3 AWS families</strong><br>
+            Each scales, fails, and deploys independently — incidents require multiple teams to isolate root cause</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="background:var(--blue-lt);border:1px solid #BEE3F8;border-radius:7px;padding:10px 18px;margin-top:14px;font-size:12.5px;color:#1a4a7a;line-height:1.55;flex-shrink:0;">
+      <strong>This is a targeted gap, not a wholesale replacement.</strong> The XGBoost model works. The transaction data is already in Snowflake. What's missing is the real-time feature pipeline that connects them — and that is exactly what this proof of concept delivers.
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">3 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 4 — WHAT WE BUILT
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-4">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">What We Built</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      End-to-end real-time fraud scoring —
+      <span class="hl-green">deployed and benchmarked on live infrastructure.</span>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Gateway entry -->
+      <div style="background:var(--navy);border-radius:8px;padding:10px 20px;color:white;font-size:13px;font-weight:600;text-align:center;">
+        Zilch EHI (Thredd webhook) → AWS PrivateLink (+3–8ms) → SPCS Scoring Container
+      </div>
+
+      <!-- 3 threads -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;flex:1;">
+
+        <div class="thread-box thread-async">
+          <div class="thread-tag">Thread A · Async</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">Snowpipe Streaming</div>
+          <div style="color:var(--muted);font-size:12px;line-height:1.55;">
+            Full transaction record → <strong>FRAUD_TRANSACTIONS</strong><br>
+            Exactly-once persistence. Zero latency on auth path. Audit trail and training data.
+          </div>
+        </div>
+
+        <div class="thread-box thread-async">
+          <div class="thread-tag">Thread B · Async</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">OFS REST Ingest</div>
+          <div style="color:var(--muted);font-size:12px;line-height:1.55;">
+            Thin 7-field event → <strong>4 CONTINUOUS velocity pipelines</strong><br>
+            Customer · Merchant · DPAN · IP velocity features live in <strong style="color:#2B6CB0;">&lt;2s</strong>. Non-blocking.
+          </div>
+        </div>
+
+        <div class="thread-box thread-sync">
+          <div class="thread-tag">Thread C · Sync</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">Score &amp; Decide</div>
+          <div style="color:var(--muted);font-size:12px;line-height:1.55;">
+            Feature Group query (1 call, all 5 FVs) → <strong>~11ms</strong><br>
+            Derived features inline → ~0.1ms<br>
+            XGBoost.predict(46 features) → <strong>~1ms</strong><br>
+            <strong style="color:var(--green);">Total: ~14ms p99</strong> · Returns: approve / flag / block
+          </div>
+        </div>
+      </div>
+
+      <!-- Snowflake components row -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex-shrink:0;">
+        <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--navy);">Snowpipe<br>Streaming</div>
+        <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--navy);">Online<br>Feature Store</div>
+        <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--navy);">Snowpark ML<br>Training</div>
+        <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--navy);">Model<br>Registry</div>
+        <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--navy);">SPCS<br>Scoring Service</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">4 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 5 — ARCHITECTURE COMPARISON
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-5">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Architecture Comparison</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      Same outcome.
+      <span class="hl-blue">Radically simpler architecture.</span>
+    </div>
+
+    <table class="comp" style="flex:1;">
+      <thead>
+        <tr>
+          <th style="width:20%;">Layer</th>
+          <th style="width:40%;">Zilch Today — AWS Native</th>
+          <th style="width:40%;">Snowflake</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ingestion</td>
+          <td class="aws">Kinesis + Lambda + S3</td>
+          <td class="sf">Snowpipe Streaming + OFS REST API</td>
+        </tr>
+        <tr>
+          <td>Feature engineering</td>
+          <td class="aws">Glue ETL jobs + RAPIDS preprocessing</td>
+          <td class="sf">None — declare features once at registration. No ETL.</td>
+        </tr>
+        <tr>
+          <td>Online feature store</td>
+          <td class="aws">Batch snapshots — minutes stale</td>
+          <td class="sf">CONTINUOUS aggregation — &lt;2s freshness out of the box</td>
+        </tr>
+        <tr>
+          <td>Model training</td>
+          <td class="aws">SageMaker + ECR + S3 data staging</td>
+          <td class="sf">Snowpark-Optimized warehouse — ~5 min/run, ~0.5 credits</td>
+        </tr>
+        <tr>
+          <td>Model serving</td>
+          <td class="aws">Triton + fraud-engine-service + EKS</td>
+          <td class="sf">SPCS container — CREATE SERVICE (one command)</td>
+        </tr>
+        <tr>
+          <td>Training/serving consistency</td>
+          <td class="aws">Serialized encoders from S3 — version drift risk on every retrain</td>
+          <td class="sf">Arithmetic inline — identical logic, drift structurally impossible</td>
+        </tr>
+        <tr>
+          <td>Monitoring</td>
+          <td class="aws">CloudWatch + X-Ray + custom dashboards per service</td>
+          <td class="sf">Unified query history + Snowflake Model Monitor</td>
+        </tr>
+        <tr>
+          <td>Compliance boundary</td>
+          <td class="aws">Data crosses multiple AWS service boundaries</td>
+          <td class="sf">Data never leaves Snowflake's network</td>
+        </tr>
+        <tr>
+          <td>Services to operate</td>
+          <td class="aws" style="font-weight:700;font-size:14px;">10+</td>
+          <td class="sf" style="font-weight:700;font-size:14px;">1 platform</td>
+        </tr>
+        <tr>
+          <td>Time to production</td>
+          <td class="aws">Months (batch fallback planned for MVP due to real-time complexity)</td>
+          <td class="sf">Weeks — real-time path is the MVP path. Proven in this POC.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">5 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 6 — MEASURED RESULTS
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-6">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Measured Results</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      All success criteria met on live infrastructure.
+      <span class="hl-green">These are measured numbers, not estimates.</span>
+    </div>
+
+    <div class="metric-row" style="flex-shrink:0;">
+      <div class="metric-tile">
+        <div class="val">~280ms</div>
+        <div class="lbl">Feature Freshness<br>Measured end-to-end<br><span style="color:rgba(255,255,255,0.4);font-size:9px;">(&lt;2s CONTINUOUS guarantee)</span></div>
+      </div>
+      <div class="metric-tile">
+        <div class="val">~14ms</div>
+        <div class="lbl">End-to-End Scoring<br>p99 · SPCS internal mesh<br><span style="color:rgba(255,255,255,0.4);font-size:9px;">(+3–8ms PrivateLink in production)</span></div>
+      </div>
+      <div class="metric-tile">
+        <div class="val">1</div>
+        <div class="lbl">Platform<br>replacing 7+ independently<br>managed AWS services</div>
+      </div>
+      <div class="metric-tile">
+        <div class="val">Zero</div>
+        <div class="lbl">Custom ETL pipelines<br>built or maintained<br>&nbsp;</div>
+      </div>
+    </div>
+
+    <div class="two-col" style="gap:20px;flex:1;">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:10px;">Latency Breakdown (100 real transactions)</div>
+        <table class="comp">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>p50</th>
+              <th>p95</th>
+              <th>p99</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OFS Feature Group (5 views, 1 call)</td>
+              <td>~11ms</td>
+              <td>~11ms</td>
+              <td>~13ms</td>
+            </tr>
+            <tr>
+              <td>XGBoost inference</td>
+              <td>~1ms</td>
+              <td>~1ms</td>
+              <td>~1ms</td>
+            </tr>
+            <tr>
+              <td><strong>Total (internal mesh)</strong></td>
+              <td><strong>~11ms</strong></td>
+              <td><strong>~12ms</strong></td>
+              <td><strong>~14ms</strong></td>
+            </tr>
+            <tr>
+              <td><strong>+ PrivateLink (production)</strong></td>
+              <td colspan="3" style="color:var(--green);font-weight:600;">~17–22ms — well inside Visa/MC 100–200ms window</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:10px;">Success Criteria</div>
+        <div class="criteria-row" style="flex-direction:column;gap:7px;">
+          <div class="criteria-pill" style="text-align:left;">✓ Feature freshness &lt;2s — ~280ms measured</div>
+          <div class="criteria-pill" style="text-align:left;">✓ Scoring latency &lt;20ms benchmark — 14ms p99</div>
+          <div class="criteria-pill" style="text-align:left;">✓ Same AWS backbone — SPCS on EC2, same region</div>
+          <div class="criteria-pill" style="text-align:left;">✓ No ETL / No pre-processing pipeline — Zero Glue jobs</div>
+          <div class="criteria-pill" style="text-align:left;">✓ Training/serving parity — drift structurally impossible</div>
+          <div class="criteria-pill" style="text-align:left;">✓ Real-time path is the MVP path — no custom build required</div>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.5;">
+          ⓘ Benchmarked on 100 real transactions (12M row table), 10 warm-up requests. Timing extracted from SPCS container — reflects internal OFS mesh latency, not Notebooks→SPCS overhead.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">6 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 7 — KEY BENEFITS
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-7">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Key Benefits</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      Three compounding improvements
+      <span class="hl-blue">from one platform decision.</span>
+    </div>
+
+    <div class="three-col" style="flex:1;">
+      <div class="benefit-card bc-latency">
+        <div class="b-title">Latency</div>
+        <ul>
+          <li><strong>~14ms p99 end-to-end (internal)</strong>~17–22ms in production with PrivateLink</li>
+          <li><strong>78–178ms headroom</strong>vs Visa/Mastercard authorization window</li>
+          <li><strong>Card testing visible from txn 2</strong>burst attack blocked before it completes</li>
+          <li><strong>~280ms feature freshness</strong>vs minutes on batch pipelines</li>
+        </ul>
+      </div>
+
+      <div class="benefit-card bc-cost">
+        <div class="b-title">Cost Impact</div>
+        <ul>
+          <li><strong>£660K–£780K / yr</strong>Reduced fraud losses — real-time burst detection</li>
+          <li><strong>£1.3M–£1.6M / yr at 2× volume</strong>Scales with transaction growth</li>
+          <li><strong>£170K–£220K / yr</strong>Engineering cost reduction (~1.25 FTE freed)</li>
+          <li><strong>£200K–£300K / yr</strong>Faster model iteration (8 extra cycles/yr)</li>
+        </ul>
+      </div>
+
+      <div class="benefit-card bc-ops">
+        <div class="b-title">Operational Simplicity</div>
+        <ul>
+          <li><strong>1 credential surface</strong>vs per-service IAM roles, access keys, endpoint auth</li>
+          <li><strong>1 network boundary</strong>vs VPC peering, security groups per service</li>
+          <li><strong>1 monitoring surface</strong>vs CloudWatch + X-Ray + custom dashboards</li>
+          <li><strong>No data egress</strong>all training and serving stays inside Snowflake</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="background:#F7FAFC;border:1px solid var(--border);border-radius:7px;padding:10px 18px;margin-top:12px;font-size:12px;color:var(--muted);line-height:1.55;flex-shrink:0;">
+      <strong style="color:var(--text);">Note on estimates:</strong> Fraud loss figures based on 24M annual transactions, 0.05% fraud rate, 20% card-testing share. Engineering savings based on ~1.25 FTE freed at £130K fully loaded. AWS infra saving £7K–£14K/yr at current volume — headcount is the primary driver.
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">7 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 8 — COST OF INACTION
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-8">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Cost of Inaction</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      Zilch's real-time feature pipeline is still being built.
+      <span class="hl-blue">Every week costs detections.</span>
+    </div>
+
+    <div style="flex:1;display:flex;gap:28px;align-items:flex-start;">
+      <div style="flex:1.1;">
+        <table class="freshness-table">
+          <thead>
+            <tr>
+              <th>Feature Freshness</th>
+              <th>What the Model Sees</th>
+              <th>Outcome</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="miss">
+              <td>Minutes (batch pipeline)</td>
+              <td>Yesterday's velocity</td>
+              <td>Attack completes undetected. All 5 transactions approved.</td>
+            </tr>
+            <tr class="miss">
+              <td>30–40s (micro-batch)</td>
+              <td>Near-current activity</td>
+              <td>Catches slower attacks. Misses bursts in &lt;30s window.</td>
+            </tr>
+            <tr class="pass">
+              <td>&lt;2s — Snowflake CONTINUOUS</td>
+              <td>Real-time velocity</td>
+              <td>Burst visible from transaction 2. Attack blocked before it completes.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="background:var(--red-lt);border:1px solid #FFCDD2;border-radius:7px;padding:12px 16px;margin-top:14px;">
+          <p style="font-size:13px;color:var(--red);font-weight:600;line-height:1.6;">
+            "Every week the pipeline remains under construction is a week the fraud model runs blind to intra-session patterns."
+          </p>
+        </div>
+      </div>
+
+      <div style="flex:0.85;display:flex;flex-direction:column;gap:12px;">
+        <div class="card" style="border-left:3px solid var(--green);">
+          <div class="card-title" style="color:var(--green);">What Snowflake Delivers Out of the Box</div>
+          <ul class="check-list">
+            <li><span class="icon" style="color:var(--green);">✓</span>Sub-2s freshness — no custom build, no batch cycle to engineer away</li>
+            <li><span class="icon" style="color:var(--green);">✓</span>CONTINUOUS aggregation updates on every ingest event, automatically</li>
+            <li><span class="icon" style="color:var(--green);">✓</span>Full stack deploys in a single notebook run</li>
+          </ul>
+        </div>
+
+        <div class="card" style="border-left:3px solid var(--blue);">
+          <div class="card-title" style="color:#2B6CB0;">What This POC Demonstrates</div>
+          <ul class="check-list">
+            <li><span class="icon" style="color:#2B6CB0;">✓</span>Built and benchmarked on live Snowflake infrastructure</li>
+            <li><span class="icon" style="color:#2B6CB0;">✓</span>~280ms freshness measured (not estimated) on real data</li>
+            <li><span class="icon" style="color:#2B6CB0;">✓</span>Ready to run against Zilch's own transaction history today</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--amber-lt);border:1px solid #F6CC6C;border-radius:7px;padding:10px 14px;font-size:12px;color:#7C5800;line-height:1.55;">
+          <strong>Online Feature Store is in Public Preview.</strong><br>
+          Snowflake provides enterprise support terms and committed SLAs for POC engagements. Direct access to product engineering included.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Customer Engineering · Confidential</span>
+    <span class="page-num">8 / 9</span>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SLIDE 9 — NEXT STEPS
+     ══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide-9">
+  <div class="slide-header">
+    <span class="logo-text">Snow<span>flake</span></span>
+    <span class="deck-label">Next Steps</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-headline">
+      Two steps to a
+      <span class="hl-blue">production-grounded decision.</span>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:0;">
+      <div class="step-card">
+        <div class="step-num">Step 1</div>
+        <div class="step-title">POC on Zilch's Live Transaction Data</div>
+        <div class="step-body">
+          Run the validated pipeline against a sample of real Zilch transaction history. Measure freshness improvement vs current baseline. Validate latency on your actual entity cardinalities (customer / merchant / DPAN / IP). The infrastructure template and deployment runbook are ready — this is a configuration exercise, not a build.
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">Step 2</div>
+        <div class="step-title">Formalised TCO and Business Value Assessment</div>
+        <div class="step-body">
+          Using Zilch's actual fraud rates, transaction volumes, and engineering costs, we convert the estimates in this deck to a business case grounded in your numbers. Snowflake account team provides Online Feature Store pricing for the Preview engagement. Output: a decision-ready cost/benefit model.
+        </div>
+      </div>
+
+      <div class="callout-box">
+        <strong>Why now:</strong> Zilch's real-time feature freshness capability is still being built. Snowflake can deliver sub-2-second freshness without waiting for a custom pipeline to ship — and without the ongoing burden of maintaining it. The technical validation is complete. The only remaining question is whether these numbers hold on Zilch's data.
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span>Snowflake Inc. · Online Feature Store (Public Preview) · Snowpark Container Services · Snowpark ML</span>
+    <span class="page-num">9 / 9</span>
+  </div>
+</section>
+
+</body>
+</html>
