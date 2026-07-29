@@ -452,9 +452,7 @@
       <span class="blue-line">Fraud Detection</span><br>
       on Snowflake
     </div>
-    <div class="cover-sub">
-      Proof of Concept — Prepared for Zilch CTO
-    </div>
+
     <div class="cover-pills">
       <span class="cover-pill">Online Feature Store</span>
       <span class="cover-pill">SPCS Scoring Service</span>
@@ -518,14 +516,6 @@
             <li><span class="icon" style="color:var(--red);">▶</span>Engineering cost to build detection from scratch</li>
           </ul>
         </div>
-        <div class="card" style="border-left:3px solid var(--navy);background:#F7FAFC;">
-          <div class="card-title" style="color:var(--navy);">Estimated Exposure at Current Volume</div>
-          <ul class="check-list">
-            <li><span class="icon">•</span>24M transactions/yr · 0.05% fraud rate = 12,000 incidents/yr</li>
-            <li><span class="icon">•</span>Card-testing estimated at 20% of fraud volume</li>
-            <li><span class="icon">•</span><strong style="color:var(--red);">~£1.2M/yr</strong> directly attributable to burst attacks on stale features</li>
-          </ul>
-        </div>
       </div>
     </div>
   </div>
@@ -542,12 +532,12 @@
 <section class="slide" id="slide-3">
   <div class="slide-header">
     <span class="logo-text">Snow<span>flake</span></span>
-    <span class="deck-label">Current State</span>
+    <span class="deck-label">Starting Point</span>
   </div>
   <div class="slide-body">
     <div class="slide-headline">
       The foundation is solid.<br>
-      <span class="hl-blue">One missing connection is costing you detections.</span>
+      <span class="hl-blue">One area to strengthen together.</span>
     </div>
 
     <div class="two-col" style="flex:1;">
@@ -568,7 +558,7 @@
       </div>
 
       <div class="card" style="background:var(--red-lt);border:1px solid #FFCDD2;">
-        <div class="card-title" style="color:var(--red);">The Three Gaps</div>
+        <div class="card-title" style="color:var(--red);">Three Areas to Strengthen</div>
         <ul class="check-list">
           <li>
             <span class="icon" style="color:var(--red);">⚠</span>
@@ -590,7 +580,7 @@
     </div>
 
     <div style="background:var(--blue-lt);border:1px solid #BEE3F8;border-radius:7px;padding:10px 18px;margin-top:14px;font-size:12.5px;color:#1a4a7a;line-height:1.55;flex-shrink:0;">
-      <strong>This is a targeted gap, not a wholesale replacement.</strong> The XGBoost model works. The transaction data is already in Snowflake. What's missing is the real-time feature pipeline that connects them — and that is exactly what this proof of concept delivers.
+      <strong>This is a targeted addition, not a wholesale replacement.</strong> The XGBoost model works. The transaction data is already in Snowflake. What's missing is the real-time feature pipeline that connects them — and that is what we built together to validate.
     </div>
   </div>
   <div class="slide-footer">
@@ -697,7 +687,7 @@
   <div class="slide-body">
     <div class="slide-headline">
       Same outcome.
-      <span class="hl-blue">Radically simpler architecture.</span>
+      <span class="hl-blue">A simpler path to real-time detection.</span>
     </div>
 
     <table class="comp" style="flex:1;">
@@ -761,8 +751,8 @@
         </tr>
         <tr>
           <td>Time to production</td>
-          <td class="aws">Months (batch fallback planned for MVP due to real-time complexity)</td>
-          <td class="sf">Weeks — real-time path is the MVP path. Proven in this POC.</td>
+          <td class="aws">Months (real-time feature freshness still being built)</td>
+          <td class="sf">Weeks — real-time path is the MVP path. Validated in this POC.</td>
         </tr>
       </tbody>
     </table>
@@ -785,7 +775,7 @@
   <div class="slide-body">
     <div class="slide-headline">
       All success criteria met on live infrastructure.
-      <span class="hl-green">These are measured numbers, not estimates.</span>
+      <span class="hl-green">Validated results.</span>
     </div>
 
     <div class="metric-row" style="flex-shrink:0;">
@@ -932,12 +922,12 @@
 <section class="slide" id="slide-8">
   <div class="slide-header">
     <span class="logo-text">Snow<span>flake</span></span>
-    <span class="deck-label">Cost of Inaction</span>
+    <span class="deck-label">Feature Freshness</span>
   </div>
   <div class="slide-body">
     <div class="slide-headline">
-      Zilch's real-time feature pipeline is still being built.
-      <span class="hl-blue">Every week costs detections.</span>
+      Why Feature Freshness Is the Lever.
+      <span class="hl-blue">And how Snowflake fills this gap today.</span>
     </div>
 
     <div style="flex:1;display:flex;gap:28px;align-items:flex-start;">
@@ -971,7 +961,7 @@
 
         <div style="background:var(--red-lt);border:1px solid #FFCDD2;border-radius:7px;padding:12px 16px;margin-top:14px;">
           <p style="font-size:13px;color:var(--red);font-weight:600;line-height:1.6;">
-            "Every week the pipeline remains under construction is a week the fraud model runs blind to intra-session patterns."
+            Building real-time feature freshness from scratch takes months. This is the gap Snowflake can fill today — without replacing what Zilch has already built.
           </p>
         </div>
       </div>
@@ -1041,7 +1031,7 @@
       </div>
 
       <div class="callout-box">
-        <strong>Why now:</strong> Zilch's real-time feature freshness capability is still being built. Snowflake can deliver sub-2-second freshness without waiting for a custom pipeline to ship — and without the ongoing burden of maintaining it. The technical validation is complete. The only remaining question is whether these numbers hold on Zilch's data.
+        <strong>Next:</strong> Zilch is building towards real-time feature freshness. Snowflake can fill that gap today — without replacing what's already working. The next step is running this together against Zilch's actual transaction data. The template is ready; it's a configuration exercise, not a build.
       </div>
     </div>
   </div>
