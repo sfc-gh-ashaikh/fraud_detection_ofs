@@ -617,8 +617,22 @@
     <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
 
       <!-- Gateway entry -->
-      <div style="background:var(--navy);border-radius:8px;padding:10px 20px;color:white;font-size:13px;font-weight:600;text-align:center;">
-        Zilch EHI (Thredd webhook) → AWS PrivateLink (+3–8ms) → SPCS Scoring Container
+      <div style="background:var(--navy);border-radius:8px;padding:8px 20px 0;color:white;flex-shrink:0;">
+        <div style="font-size:12px;font-weight:600;text-align:center;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.15);">
+          Payment Gateway (Thredd event) → <strong style="color:var(--blue);">Zilch EHI</strong>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+          <div style="padding:8px 16px;border-right:1px solid rgba(255,255,255,0.15);">
+            <span style="font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--blue);">AWS PrivateLink · Async</span><br>
+            <span style="font-size:12px;font-weight:600;">→ OFS Ingest API</span>
+            <span style="font-size:11px;color:rgba(255,255,255,0.6);"> · 7-field event · features in &lt;2s</span>
+          </div>
+          <div style="padding:8px 16px;">
+            <span style="font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#86EFAC;">AWS PrivateLink · Sync</span><br>
+            <span style="font-size:12px;font-weight:600;">→ SPCS Scoring Endpoint</span>
+            <span style="font-size:11px;color:rgba(255,255,255,0.6);"> · returns approve / flag / block</span>
+          </div>
+        </div>
       </div>
 
       <!-- 3 threads -->
@@ -634,11 +648,12 @@
         </div>
 
         <div class="thread-box thread-async">
-          <div class="thread-tag">Thread B · Async</div>
-          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">OFS REST Ingest</div>
+          <div class="thread-tag">Thread B · EHI Async</div>
+          <div style="font-weight:700;margin-bottom:6px;font-size:13px;">OFS REST Ingest (direct)</div>
           <div style="color:var(--muted);font-size:12px;line-height:1.55;">
+            EHI fires this over PrivateLink — not through SPCS.<br>
             Thin 7-field event → <strong>4 CONTINUOUS velocity pipelines</strong><br>
-            Customer · Merchant · DPAN · IP velocity features live in <strong style="color:#2B6CB0;">&lt;2s</strong>. Non-blocking.
+            Customer · Merchant · DPAN · IP velocity features live in <strong style="color:#2B6CB0;">&lt;2s</strong>. Does not touch the scoring path.
           </div>
         </div>
 
@@ -697,7 +712,7 @@
         <tr>
           <td>Ingestion</td>
           <td class="aws">Kinesis + Lambda + S3</td>
-          <td class="sf">Snowpipe Streaming + OFS REST API</td>
+          <td class="sf">Snowpipe Streaming (SPCS async) + OFS REST Ingest (EHI direct via PrivateLink)</td>
         </tr>
         <tr>
           <td>Feature engineering</td>
@@ -717,7 +732,7 @@
         <tr>
           <td>Model serving</td>
           <td class="aws">Triton + fraud-engine-service + EKS</td>
-          <td class="sf">SPCS container — CREATE SERVICE (one command)</td>
+          <td class="sf">SPCS ingress endpoint — accessed via PrivateLink from EHI. CREATE SERVICE (one command) + one VPC Interface Endpoint in Zilch's AWS account.</td>
         </tr>
         <tr>
           <td>Training/serving consistency</td>
@@ -733,6 +748,11 @@
           <td>Compliance boundary</td>
           <td class="aws">Data crosses multiple AWS service boundaries</td>
           <td class="sf">Data never leaves Snowflake's network</td>
+        </tr>
+        <tr>
+          <td>Network connectivity</td>
+          <td class="aws">VPC security groups + NAT + public API Gateway endpoints</td>
+          <td class="sf">AWS PrivateLink — one interface VPC Endpoint resolves <em>*.snowflakecomputing.app</em> to a private IP. Covers OFS Ingest + SPCS scoring in a single endpoint config. No public internet.</td>
         </tr>
         <tr>
           <td>Services to operate</td>
